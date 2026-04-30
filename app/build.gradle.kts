@@ -62,8 +62,8 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     
-    // Media Session 支持（使用稳定版本 1.6.0）
-    implementation("androidx.media:media:1.6.0")
+    // Media Session 支持（使用超稳定版本 1.4.3）
+    implementation("androidx.media:media:1.4.3")
     
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")

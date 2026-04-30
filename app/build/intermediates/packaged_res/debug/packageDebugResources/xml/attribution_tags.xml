@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<attributionTags xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 音频播放标签 -->
+    <tag android:name="media_playback" 
+         android:label="@string/app_name" />
+    
+    <!-- 网络访问标签 -->
+    <tag android:name="network_access" 
+         android:label="@string/app_name" />
+    
+    <!-- 媒体控制标签 -->
+    <tag android:name="media_control" 
+         android:label="@string/app_name" />
+    
+    <!-- 通知服务标签 -->
+    <tag android:name="notification_service" 
+         android:label="@string/app_name" />
+    
+    <!-- 剪贴板访问标签 -->
+    <tag android:name="clipboard_access" 
+         android:label="@string/app_name" />
+    
+    <!-- 蓝牙服务标签 -->
+    <tag android:name="bluetooth_service" 
+         android:label="@string/app_name" />
+    
+    <!-- 媒体 HTTP 服务标签 -->
+    <tag android:name="media_http_service" 
+         android:label="@string/app_name" />
+    
+    <!-- AppOps 系统服务标签 -->
+    <tag android:name="appops_service" 
+         android:label="@string/app_name" />
+    
+    <!-- 系统服务调用标签 -->
+    <tag android:name="system_service" 
+         android:label="@string/app_name" />
+    
+    <!-- 默认标签 -->
+    <tag android:name="default" 
+         android:label="@string/app_name" />
+</attributionTags>

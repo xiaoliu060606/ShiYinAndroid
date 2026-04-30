@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- 应用主题 - 支持亮色/暗色自动切换 -->
+    <style name="Theme.ShiYinMusic" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- 主色调 -->
+        <item name="colorPrimary">@color/shiyin_primary</item>
+        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorOnPrimary">@color/white</item>
+        
+        <!-- 强调色 -->
+        <item name="colorSecondary">@color/shiyin_accent</item>
+        <item name="colorSecondaryVariant">@color/teal_700</item>
+        <item name="colorOnSecondary">@color/black</item>
+        
+        <!-- 状态栏 - 沉浸式透明 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        
+        <!-- 亮色模式下状态栏图标为深色 -->
+        <item name="android:windowLightStatusBar">true</item>
+        
+        <!-- 背景 -->
+        <item name="android:windowBackground">@color/shiyin_background</item>
+        
+        <!-- 无标题栏 -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        
+        <!-- 硬件加速 -->
+        <item name="android:hardwareAccelerated">true</item>
+        
+        <!-- 允许绘制到系统栏区域 -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

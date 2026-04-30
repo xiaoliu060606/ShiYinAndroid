@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">扣扣云</string>
+    <string name="notification_channel_name">音乐播放</string>
+    <string name="notification_channel_description">音乐播放控制和通知</string>
+    <string name="play">播放</string>
+    <string name="pause">暂停</string>
+    <string name="previous">上一首</string>
+    <string name="next">下一首</string>
+    <string name="stop">停止</string>
+    <string name="unknown_song">未知歌曲</string>
+    <string name="unknown_artist">未知歌手</string>
+</resources>

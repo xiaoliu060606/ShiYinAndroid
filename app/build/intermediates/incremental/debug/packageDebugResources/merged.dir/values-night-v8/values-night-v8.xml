@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="notification_bg">#FF1E1E28</color>
+    <color name="shiyin_accent">#FFE1826E</color>
+    <color name="shiyin_background">#FF121212</color>
+    <color name="shiyin_primary">#FF5E9EED</color>
+    <color name="shiyin_surface">#FF1E1E1E</color>
+    <color name="shiyin_text">#FFFFFFFF</color>
+    <style name="Theme.ShiYinMusic" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        
+        <item name="colorPrimary">@color/shiyin_primary</item>
+        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorOnPrimary">@color/white</item>
+        
+        
+        <item name="colorSecondary">@color/shiyin_accent</item>
+        <item name="colorSecondaryVariant">@color/teal_700</item>
+        <item name="colorOnSecondary">@color/black</item>
+        
+        
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        
+        
+        <item name="android:windowLightStatusBar">false</item>
+        
+        
+        <item name="android:windowBackground">@color/shiyin_background</item>
+        
+        
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        
+        
+        <item name="android:hardwareAccelerated">true</item>
+        
+        
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

@@ -1,0 +1,98 @@
+[
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\drawable_ic_play.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\drawable\\ic_play.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\xml_attribution_tags.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\xml\\attribution_tags.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-hdpi_ic_launcher.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-hdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-xxxhdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-hdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-mdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-xxxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\drawable_ic_pause.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\drawable\\ic_pause.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\drawable_ic_default_album.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\drawable\\ic_default_album.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\xml_network_security_config.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\xml\\network_security_config.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\drawable_ic_notification.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\drawable\\ic_notification.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\drawable_ic_music_note.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\drawable\\ic_music_note.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-xhdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-mdpi_ic_launcher.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-mdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-xxhdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-xxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\drawable_ic_next.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\drawable\\ic_next.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\drawable_ic_stop.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\drawable\\ic_stop.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\xml_data_extraction_rules.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\xml\\data_extraction_rules.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\drawable_ic_previous.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\drawable\\ic_previous.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\mipmap-xhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\xml_backup_rules.xml.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\xml\\backup_rules.xml"
+    },
+    {
+        "merged": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-debug-4:\\drawable_kou_kou_yun.png.flat",
+        "source": "D:\\Android\\daemon\\8.7\\com.shiyin.music.app-main-6:\\drawable\\kou_kou_yun.png"
+    },
+    {
+        "merged": "com.shiyin.music.app-debug-4:/drawable_ic_notification.xml.flat",
+        "source": "com.shiyin.music.app-main-6:/drawable/ic_notification.xml"
+    }
+]

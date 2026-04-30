@@ -1,0 +1,262 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.shiyin.music"
+4    android:versionCode="7"
+5    android:versionName="4.1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="34" />
+10
+11    <!-- 网络权限 -->
+12    <uses-permission android:name="android.permission.INTERNET" />
+12-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:6:5-67
+12-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:6:22-64
+13    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+13-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:7:5-79
+13-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:7:22-76
+14    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+14-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:8:5-76
+14-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:8:22-73
+15
+16    <!-- 音频权限 -->
+17    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+17-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:11:5-80
+17-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:11:22-77
+18
+19    <!-- 通知权限 -->
+20    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+20-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:14:5-77
+20-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:14:22-74
+21    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+21-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:15:5-77
+21-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:15:22-74
+22    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+22-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:16:5-92
+22-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:16:22-89
+23
+24    <!-- 蓝牙权限（用于蓝牙耳机控制）Android 12+ 需要运行时请求 -->
+25    <uses-permission android:name="android.permission.BLUETOOTH" />
+25-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:19:5-68
+25-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:19:22-65
+26    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+26-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:20:5-74
+26-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:20:22-71
+27    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+27-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:21:5-76
+27-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:21:22-73
+28    <!-- Android 12+ 蓝牙扫描权限（如果需要扫描设备） -->
+29    <uses-permission
+29-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:23:5-120
+30        android:name="android.permission.BLUETOOTH_SCAN"
+30-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:23:22-70
+31        android:usesPermissionFlags="neverForLocation" />
+31-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:23:71-117
+32
+33    <!-- 唤醒锁（防止播放时休眠） -->
+34    <uses-permission android:name="android.permission.WAKE_LOCK" />
+34-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:26:5-68
+34-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:26:22-65
+35
+36    <permission
+36-->[androidx.core:core:1.12.0] D:\Android\caches\transforms-4\8b3e9d20a8b770a8d6cd4f0ac628f1c2\transformed\core-1.12.0\AndroidManifest.xml:22:5-24:47
+37        android:name="com.shiyin.music.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+37-->[androidx.core:core:1.12.0] D:\Android\caches\transforms-4\8b3e9d20a8b770a8d6cd4f0ac628f1c2\transformed\core-1.12.0\AndroidManifest.xml:23:9-81
+38        android:protectionLevel="signature" />
+38-->[androidx.core:core:1.12.0] D:\Android\caches\transforms-4\8b3e9d20a8b770a8d6cd4f0ac628f1c2\transformed\core-1.12.0\AndroidManifest.xml:24:9-44
+39
+40    <uses-permission android:name="com.shiyin.music.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+40-->[androidx.core:core:1.12.0] D:\Android\caches\transforms-4\8b3e9d20a8b770a8d6cd4f0ac628f1c2\transformed\core-1.12.0\AndroidManifest.xml:26:5-97
+40-->[androidx.core:core:1.12.0] D:\Android\caches\transforms-4\8b3e9d20a8b770a8d6cd4f0ac628f1c2\transformed\core-1.12.0\AndroidManifest.xml:26:22-94
+41
+42    <application
+42-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:28:5-91:19
+43        android:allowBackup="true"
+43-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:29:9-35
+44        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+44-->[androidx.core:core:1.12.0] D:\Android\caches\transforms-4\8b3e9d20a8b770a8d6cd4f0ac628f1c2\transformed\core-1.12.0\AndroidManifest.xml:28:18-86
+45        android:dataExtractionRules="@xml/data_extraction_rules"
+45-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:30:9-65
+46        android:debuggable="true"
+47        android:extractNativeLibs="false"
+48        android:fullBackupContent="@xml/backup_rules"
+48-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:31:9-54
+49        android:hardwareAccelerated="true"
+49-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:39:9-43
+50        android:icon="@mipmap/ic_launcher"
+50-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:32:9-43
+51        android:label="@string/app_name"
+51-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:33:9-41
+52        android:networkSecurityConfig="@xml/network_security_config"
+52-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:38:9-69
+53        android:roundIcon="@mipmap/ic_launcher_round"
+53-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:34:9-54
+54        android:supportsRtl="true"
+54-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:35:9-35
+55        android:testOnly="true"
+56        android:theme="@style/Theme.ShiYinMusic"
+56-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:36:9-49
+57        android:usesCleartextTraffic="true" >
+57-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:37:9-44
+58
+59        <!-- MainActivity - 硬件加速已在 application 级别开启 -->
+60        <activity
+60-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:44:9-61:20
+61            android:name="com.shiyin.music.MainActivity"
+61-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:45:13-41
+62            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize"
+62-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:48:13-93
+63            android:exported="true"
+63-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:46:13-36
+64            android:hardwareAccelerated="true"
+64-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:49:13-47
+65            android:launchMode="singleTask"
+65-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:47:13-44
+66            android:windowSoftInputMode="adjustResize" >
+66-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:50:13-55
+67            <intent-filter>
+67-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:51:13-54:29
+68                <action android:name="android.intent.action.MAIN" />
+68-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:52:17-69
+68-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:52:25-66
+69
+70                <category android:name="android.intent.category.LAUNCHER" />
+70-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:53:17-77
+70-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:53:27-74
+71            </intent-filter>
+72
+73            <!-- 媒体控制 Intent Filter -->
+74            <intent-filter>
+74-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:57:13-60:29
+75                <action android:name="android.intent.action.MEDIA_BUTTON" />
+75-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:58:17-77
+75-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:58:25-74
+76                <action android:name="MEDIA_CONTROL" />
+76-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:59:17-56
+76-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:59:25-53
+77            </intent-filter>
+78        </activity>
+79
+80        <!-- 媒体按钮接收器 -->
+81        <receiver
+81-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:64:9-77:20
+82            android:name="com.shiyin.music.MediaButtonReceiver"
+82-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:65:13-48
+83            android:exported="true" >
+83-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:66:13-36
+84            <intent-filter android:priority="1000" >
+84-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:67:13-69:29
+84-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:67:28-51
+85                <action android:name="android.intent.action.MEDIA_BUTTON" />
+85-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:58:17-77
+85-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:58:25-74
+86            </intent-filter>
+87            <intent-filter>
+87-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:70:13-76:29
+88                <action android:name="com.shiyin.music.PLAY" />
+88-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:71:17-64
+88-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:71:25-61
+89                <action android:name="com.shiyin.music.PAUSE" />
+89-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:72:17-65
+89-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:72:25-62
+90                <action android:name="com.shiyin.music.PREVIOUS" />
+90-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:73:17-68
+90-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:73:25-65
+91                <action android:name="com.shiyin.music.NEXT" />
+91-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:74:17-64
+91-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:74:25-61
+92                <action android:name="com.shiyin.music.STOP" />
+92-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:75:17-64
+92-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:75:25-61
+93            </intent-filter>
+94        </receiver>
+95
+96        <!-- 媒体浏览器服务（可选，用于 Android Auto 等） -->
+97        <service
+97-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:80:9-89:19
+98            android:name="com.shiyin.music.MediaPlaybackService"
+98-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:81:13-49
+99            android:attributionTags="@xml/attribution_tags"
+99-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:85:13-60
+100            android:enabled="true"
+100-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:82:13-35
+101            android:exported="true"
+101-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:83:13-36
+102            android:foregroundServiceType="mediaPlayback" >
+102-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:84:13-58
+103            <intent-filter>
+103-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:86:13-88:29
+104                <action android:name="android.media.browse.MediaBrowserService" />
+104-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:87:17-83
+104-->C:\Users\wesha\Desktop\ShiYinAndroid\app\src\main\AndroidManifest.xml:87:25-80
+105            </intent-filter>
+106        </service>
+107
+108        <provider
+108-->[androidx.emoji2:emoji2:1.2.0] D:\Android\caches\transforms-4\bb6a976312ad117d238db39a47140abb\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:24:9-32:20
+109            android:name="androidx.startup.InitializationProvider"
+109-->[androidx.emoji2:emoji2:1.2.0] D:\Android\caches\transforms-4\bb6a976312ad117d238db39a47140abb\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:25:13-67
+110            android:authorities="com.shiyin.music.androidx-startup"
+110-->[androidx.emoji2:emoji2:1.2.0] D:\Android\caches\transforms-4\bb6a976312ad117d238db39a47140abb\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:26:13-68
+111            android:exported="false" >
+111-->[androidx.emoji2:emoji2:1.2.0] D:\Android\caches\transforms-4\bb6a976312ad117d238db39a47140abb\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:27:13-37
+112            <meta-data
+112-->[androidx.emoji2:emoji2:1.2.0] D:\Android\caches\transforms-4\bb6a976312ad117d238db39a47140abb\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:29:13-31:52
+113                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+113-->[androidx.emoji2:emoji2:1.2.0] D:\Android\caches\transforms-4\bb6a976312ad117d238db39a47140abb\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:30:17-75
+114                android:value="androidx.startup" />
+114-->[androidx.emoji2:emoji2:1.2.0] D:\Android\caches\transforms-4\bb6a976312ad117d238db39a47140abb\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:31:17-49
+115            <meta-data
+115-->[androidx.lifecycle:lifecycle-process:2.7.0] D:\Android\caches\transforms-4\d99cb48f1dca7bce7dc508475d02586b\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:29:13-31:52
+116                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+116-->[androidx.lifecycle:lifecycle-process:2.7.0] D:\Android\caches\transforms-4\d99cb48f1dca7bce7dc508475d02586b\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:30:17-78
+117                android:value="androidx.startup" />
+117-->[androidx.lifecycle:lifecycle-process:2.7.0] D:\Android\caches\transforms-4\d99cb48f1dca7bce7dc508475d02586b\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:31:17-49
+118            <meta-data
+118-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:29:13-31:52
+119                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+119-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:30:17-85
+120                android:value="androidx.startup" />
+120-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:31:17-49
+121        </provider>
+122
+123        <receiver
+123-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:34:9-52:20
+124            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+124-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:35:13-76
+125            android:directBootAware="false"
+125-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:36:13-44
+126            android:enabled="true"
+126-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:37:13-35
+127            android:exported="true"
+127-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:38:13-36
+128            android:permission="android.permission.DUMP" >
+128-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:39:13-57
+129            <intent-filter>
+129-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:40:13-42:29
+130                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+130-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:41:17-91
+130-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:41:25-88
+131            </intent-filter>
+132            <intent-filter>
+132-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:43:13-45:29
+133                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+133-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:44:17-85
+133-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:44:25-82
+134            </intent-filter>
+135            <intent-filter>
+135-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:46:13-48:29
+136                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+136-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:47:17-88
+136-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:47:25-85
+137            </intent-filter>
+138            <intent-filter>
+138-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:49:13-51:29
+139                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+139-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:50:17-95
+139-->[androidx.profileinstaller:profileinstaller:1.3.0] D:\Android\caches\transforms-4\1ca89cbae6d58b07106a2e71ca08d28c\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:50:25-92
+140            </intent-filter>
+141        </receiver>
+142    </application>
+143
+144</manifest>

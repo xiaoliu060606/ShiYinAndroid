@@ -1,0 +1,18 @@
+{
+  "lyric_api": {
+    "url": "https://your-api-domain.com/api/lyric",
+    "token": "YOUR_TOKEN_HERE"
+  },
+  "search_api": {
+    "url": "https://your-api-domain.com/api/search",
+    "token": "YOUR_TOKEN_HERE"
+  },
+  "yunzhi_api": {
+    "url": "https://your-api-domain.com/API/endpoint",
+    "token": "YOUR_TOKEN_HERE"
+  },
+  "cenguigui_cn_api": {
+    "url": "https://your-api-domain.com/api/music",
+    "token": ""
+  }
+}

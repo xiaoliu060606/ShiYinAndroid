@@ -3,6 +3,7 @@ package com.shiyin.music
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.view.KeyEvent
 
@@ -22,11 +23,38 @@ class MediaButtonReceiver : BroadcastReceiver() {
             Intent.ACTION_MEDIA_BUTTON -> {
                 handleMediaButton(context, intent)
             }
+            MediaSessionManager.ACTION_PLAY,
+            MediaSessionManager.ACTION_PAUSE,
+            MediaSessionManager.ACTION_PREVIOUS,
+            MediaSessionManager.ACTION_NEXT,
+            MediaSessionManager.ACTION_STOP -> {
+                handleNotificationAction(context, intent.action ?: return)
+            }
             else -> {
-                // 其他 ACTION 已通过 MediaSession.TransportControls 直接处理
-                Log.d(TAG, "收到非媒体按钮事件: ${intent.action}")
+                Log.d(TAG, "收到未处理的 action: ${intent.action}")
             }
         }
+    }
+
+    private fun handleNotificationAction(context: Context, action: String) {
+        when (action) {
+            MediaSessionManager.ACTION_PLAY -> {
+                sendCommandToMainActivity(context, "play")
+            }
+            MediaSessionManager.ACTION_PAUSE -> {
+                sendCommandToMainActivity(context, "pause")
+            }
+            MediaSessionManager.ACTION_PREVIOUS -> {
+                sendCommandToMainActivity(context, "previous")
+            }
+            MediaSessionManager.ACTION_NEXT -> {
+                sendCommandToMainActivity(context, "next")
+            }
+            MediaSessionManager.ACTION_STOP -> {
+                sendCommandToMainActivity(context, "stop")
+            }
+        }
+        Log.d(TAG, "通知栏命令已发送: $action")
     }
 
     /**
@@ -60,16 +88,52 @@ class MediaButtonReceiver : BroadcastReceiver() {
         }
     }
 
-    /**
-     * 发送命令到 MainActivity
-     */
     private fun sendCommandToMainActivity(context: Context, command: String) {
-        val intent = Intent(context, MainActivity::class.java).apply {
-            action = "MEDIA_CONTROL"
-            putExtra("command", command)
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+        // 关键修复：优先通过 MediaSession TransportControls 直接处理
+        // 避免 startActivity 带来的延迟和卡顿
+        try {
+            val sessionToken = MediaPlaybackService.pendingSessionToken
+            if (sessionToken != null) {
+                val mediaController = android.support.v4.media.session.MediaControllerCompat(context, sessionToken)
+                val transportControls = mediaController.transportControls
+                when (command) {
+                    "play" -> transportControls.play()
+                    "pause" -> transportControls.pause()
+                    "next" -> transportControls.skipToNext()
+                    "previous" -> transportControls.skipToPrevious()
+                    "stop" -> transportControls.stop()
+                    "toggle" -> {
+                        val state = mediaController.playbackState
+                        if (state != null && state.state == PlaybackStateCompat.STATE_PLAYING) {
+                            transportControls.pause()
+                        } else {
+                            transportControls.play()
+                        }
+                    }
+                }
+                Log.d(TAG, "媒体命令已发送(通过MediaSession): $command")
+                return
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "通过MediaSession发送失败: ${e.message}，降级到Activity")
         }
-        context.startActivity(intent)
-        Log.d(TAG, "媒体命令已发送: $command")
+
+        // 降级方案：通过 Activity 处理
+        try {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                action = "MEDIA_CONTROL"
+                putExtra("command", command)
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+            Log.d(TAG, "媒体命令已发送(通过Activity): $command")
+        } catch (e: Exception) {
+            Log.e(TAG, "启动Activity也失败: ${e.message}")
+            val fallbackIntent = Intent("MEDIA_CONTROL_FALLBACK").apply {
+                putExtra("command", command)
+                setPackage(context.packageName)
+            }
+            context.sendBroadcast(fallbackIntent)
+        }
     }
 }

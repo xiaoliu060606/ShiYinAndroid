@@ -15,6 +15,7 @@ class PlaylistRepository(private val context: Context) {
     companion object {
         private const val TAG = "PlaylistRepository"
         private const val PLAYLIST_FILE_NAME = "playlist.json"
+        private val suo = Any()
     }
 
     private val playlistFile: File
@@ -22,26 +23,91 @@ class PlaylistRepository(private val context: Context) {
 
     /**
      * 保存播放列表到本地
+     * 关键修复：Android JSONObject.toString() 会将 / 转义为 \/，
+     * 导致封面URL被污染为 https:\/\/... 格式，原生层Glide加载失败。
+     * 写入前必须将 \/ 还原为 /。
      * @param playlistJson 播放列表 JSON 字符串
      * @return 是否保存成功
      */
     fun savePlaylist(playlistJson: String): Boolean {
-        return try {
-            // 验证 JSON 格式
-            JSONObject(playlistJson)
+        return synchronized(suo) {
+            try {
+                // 验证JSON有效性
+                JSONObject(playlistJson)
 
-            // 写入文件
-            playlistFile.writeText(playlistJson)
-            Log.d(TAG, "播放列表已保存到: ${playlistFile.absolutePath}")
-            true
+                // 安全兜底：规范化封面URL，修复双斜杠污染
+                var normalizedJson = guiFanHuaFengMianUrl(playlistJson)
+
+                // 关键修复：Android JSONObject.toString() 会将 / 转义为 \/
+                // 必须还原为 / 才能被 Glide 和 WebView 正确加载
+                normalizedJson = quXiaoZhuanYi(normalizedJson)
+
+                val tmpFile = File(context.filesDir, "$PLAYLIST_FILE_NAME.tmp")
+                tmpFile.writeText(normalizedJson)
+                val target = playlistFile
+                if (target.exists()) target.delete()
+                if (!tmpFile.renameTo(target)) {
+                    tmpFile.delete()
+                    target.writeText(normalizedJson)
+                }
+                Log.d(TAG, "播放列表已保存到: ${playlistFile.absolutePath}")
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "保存播放列表失败", e)
+                false
+            }
+        }
+    }
+
+    /**
+     * 去除 Android JSONObject.toString() 产生的 \/ 转义
+     * 将 https:\/\/p3.music.126.net\/... 还原为 https://p3.music.126.net/...
+     * 仅在 JSON 字符串值内部生效，不会破坏其他转义
+     */
+    private fun quXiaoZhuanYi(json: String): String {
+        return json.replace("\\/", "/")
+    }
+
+    /**
+     * 规范化 JSON 中的封面 URL：去除路径中的双斜杠
+     * 例如: https://p3.music.126.net//abc//def.jpg → https://p3.music.126.net/abc/def.jpg
+     */
+    private fun guiFanHuaFengMianUrl(json: String): String {
+        return try {
+            val obj = JSONObject(json)
+            val songs = obj.optJSONArray("songs") ?: return json
+            var modified = false
+            for (i in 0 until songs.length()) {
+                val song = songs.getJSONObject(i)
+                val pic = song.optString("pic", "")
+                if (pic.isNotEmpty() && pic.contains("://")) {
+                    val idx = pic.indexOf("://")
+                    if (idx > 0) {
+                        val protocol = pic.substring(0, idx + 3)
+                        val rest = pic.substring(idx + 3)
+                        val normalized = rest.replace(Regex("/{2,}"), "/")
+                        if (normalized != rest) {
+                            song.put("pic", protocol + normalized)
+                            modified = true
+                        }
+                    }
+                }
+            }
+            if (modified) {
+                Log.d(TAG, "封面URL已规范化")
+                obj.toString()
+            } else {
+                json
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "保存播放列表失败", e)
-            false
+            Log.w(TAG, "规范化封面URL失败: ${e.message}")
+            json
         }
     }
 
     /**
      * 从本地加载播放列表
+     * 加载时同时修复历史脏数据中的 \/ 转义问题
      * @return 播放列表 JSON 字符串，如果不存在则返回 null
      */
     fun loadPlaylist(): String? {
@@ -52,8 +118,10 @@ class PlaylistRepository(private val context: Context) {
                     Log.d(TAG, "播放列表文件为空")
                     null
                 } else {
-                    Log.d(TAG, "播放列表已加载，大小: ${content.length} 字符")
-                    content
+                    // 修复历史脏数据：如果文件中仍有 \/ 转义，读取时一并修复
+                    val fixedContent = quXiaoZhuanYi(content)
+                    Log.d(TAG, "播放列表已加载，大小: ${fixedContent.length} 字符")
+                    fixedContent
                 }
             } else {
                 Log.d(TAG, "播放列表文件不存在")
@@ -78,50 +146,49 @@ class PlaylistRepository(private val context: Context) {
      * @return 是否添加成功
      */
     fun addSong(songJson: String): Boolean {
-        Log.d(TAG, "addSong 被调用，接收到的 JSON: $songJson")
-        return try {
-            val currentPlaylist = loadPlaylist()
-            Log.d(TAG, "当前播放列表: $currentPlaylist")
-            
-            // 检查是否为空或无效JSON
-            val jsonObject = if (!currentPlaylist.isNullOrBlank()) {
-                try {
-                    JSONObject(currentPlaylist)
-                } catch (e: Exception) {
-                    Log.w(TAG, "现有播放列表JSON无效，创建新的")
+        synchronized(suo) {
+            Log.d(TAG, "addSong 被调用，接收到的 JSON: $songJson")
+            return try {
+                val currentPlaylist = loadPlaylist()
+                Log.d(TAG, "当前播放列表: $currentPlaylist")
+
+                val jsonObject = if (!currentPlaylist.isNullOrBlank()) {
+                    try {
+                        JSONObject(currentPlaylist)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "现有播放列表JSON无效，创建新的")
+                        JSONObject().put("songs", JSONArray())
+                    }
+                } else {
                     JSONObject().put("songs", JSONArray())
                 }
-            } else {
-                JSONObject().put("songs", JSONArray())
-            }
 
-            val songsArray = jsonObject.getJSONArray("songs")
-            val newSong = JSONObject(songJson)
+                val songsArray = jsonObject.getJSONArray("songs")
+                val newSong = JSONObject(songJson)
 
-            // 检查是否已存在相同 ID 的歌曲
-            val songId = newSong.optString("id")
-            var exists = false
-            for (i in 0 until songsArray.length()) {
-                val song = songsArray.getJSONObject(i)
-                if (song.optString("id") == songId) {
-                    exists = true
-                    break
+                val songId = newSong.optString("id")
+                var exists = false
+                for (i in 0 until songsArray.length()) {
+                    val song = songsArray.getJSONObject(i)
+                    if (song.optString("id") == songId) {
+                        exists = true
+                        break
+                    }
                 }
-            }
 
-            // 如果不存在则添加
-            if (!exists) {
-                songsArray.put(newSong)
-                jsonObject.put("songs", songsArray)
-                val saveResult = savePlaylist(jsonObject.toString())
-                Log.d(TAG, "歌曲已添加到播放列表: ${newSong.optString("name")}，保存结果: $saveResult")
-            } else {
-                Log.d(TAG, "歌曲已存在，跳过添加: ${newSong.optString("name")}")
+                if (!exists) {
+                    songsArray.put(newSong)
+                    jsonObject.put("songs", songsArray)
+                    val saveResult = savePlaylist(jsonObject.toString())
+                    Log.d(TAG, "歌曲已添加到播放列表: ${newSong.optString("name")}，保存结果: $saveResult")
+                } else {
+                    Log.d(TAG, "歌曲已存在，跳过添加: ${newSong.optString("name")}")
+                }
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "添加歌曲失败: ${e.message}", e)
+                false
             }
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "添加歌曲失败: ${e.message}", e)
-            false
         }
     }
 
@@ -131,26 +198,28 @@ class PlaylistRepository(private val context: Context) {
      * @return 是否删除成功
      */
     fun removeSong(songId: String): Boolean {
-        return try {
-            val currentPlaylist = loadPlaylist() ?: return false
-            val jsonObject = JSONObject(currentPlaylist)
-            val songsArray = jsonObject.getJSONArray("songs")
-            val newArray = JSONArray()
+        return synchronized(suo) {
+            try {
+                val currentPlaylist = loadPlaylist() ?: return false
+                val jsonObject = JSONObject(currentPlaylist)
+                val songsArray = jsonObject.getJSONArray("songs")
+                val newArray = JSONArray()
 
-            for (i in 0 until songsArray.length()) {
-                val song = songsArray.getJSONObject(i)
-                if (song.optString("id") != songId) {
-                    newArray.put(song)
+                for (i in 0 until songsArray.length()) {
+                    val song = songsArray.getJSONObject(i)
+                    if (song.optString("id") != songId) {
+                        newArray.put(song)
+                    }
                 }
-            }
 
-            jsonObject.put("songs", newArray)
-            savePlaylist(jsonObject.toString())
-            Log.d(TAG, "歌曲已从播放列表删除: $songId")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "删除歌曲失败", e)
-            false
+                jsonObject.put("songs", newArray)
+                savePlaylist(jsonObject.toString())
+                Log.d(TAG, "歌曲已从播放列表删除: $songId")
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "删除歌曲失败", e)
+                false
+            }
         }
     }
 

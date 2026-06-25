@@ -1,16 +1,21 @@
 package com.shiyin.music
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
+import android.provider.Settings
 import java.io.File
+import java.lang.ref.WeakReference
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsetsController
@@ -37,12 +42,63 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var mediaSessionManager: MediaSessionManager
-    private lateinit var webAppInterface: WebAppInterface
+    internal lateinit var webAppInterface: WebAppInterface
     private lateinit var playlistRepository: PlaylistRepository
     private lateinit var clipboardHelper: ClipboardHelper
+    lateinit var quanJuYiChangChuLi: QuanJuYiChangChuLi
 
     // WakeLock 防止 CPU 休眠
     private var wakeLock: PowerManager.WakeLock? = null
+
+    // 悬浮窗歌词管理器
+    lateinit var xuanFuGeCiManager: XuanFuGeCiManager
+
+    /** 查询悬浮窗管理器是否已初始化（供外部安全访问） */
+    fun xuanFuGeCiYiChuShiHua(): Boolean = ::xuanFuGeCiManager.isInitialized
+
+    private val meiTiJiangJiJieShouQi = MeiTiJiangJiJieShouQi(this)
+
+    private class MeiTiJiangJiJieShouQi(activity: MainActivity) : BroadcastReceiver() {
+        private val activityRef = WeakReference(activity)
+        override fun onReceive(context: Context, intent: Intent) {
+            val command = intent.getStringExtra("command") ?: return
+            activityRef.get()?.sendCommandToWeb(command)
+        }
+    }
+
+    private val yinPinZaoYinJieShouQi = YinPinZaoYinJieShouQi(this)
+
+    private class YinPinZaoYinJieShouQi(activity: MainActivity) : BroadcastReceiver() {
+        private val activityRef = WeakReference(activity)
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                val activity = activityRef.get() ?: return
+                val player = activity.webAppInterface.currentPlayer
+                if (player != null && player.isPlayingState()) {
+                    player.pause()
+                } else {
+                    activity.sendCommandToWeb("pause")
+                }
+            }
+        }
+    }
+
+    private val lanYaDuanKaiJieShouQi = LanYaDuanKaiJieShouQi(this)
+
+    private class LanYaDuanKaiJieShouQi(activity: MainActivity) : BroadcastReceiver() {
+        private val activityRef = WeakReference(activity)
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED) {
+                val activity = activityRef.get() ?: return
+                val player = activity.webAppInterface.currentPlayer
+                if (player != null && player.isPlayingState()) {
+                    player.pause()
+                    activity.webAppInterface.mediaSessionManager.setPlayStateFromNative(false)
+                }
+                activity.sendCommandToWeb("pause")
+            }
+        }
+    }
 
     // 权限请求
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -53,12 +109,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // 悬浮窗权限回调
+    internal val overlayPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (Settings.canDrawOverlays(this)) {
+            xuanFuGeCiManager.kaiQi()
+            webView.evaluateJavascript(
+                "javascript:typeof onXuanFuQuanXianJieGuo==='function'&&onXuanFuQuanXianJieGuo(true)", null
+            )
+        } else {
+            webView.evaluateJavascript(
+                "javascript:typeof onXuanFuQuanXianJieGuo==='function'&&onXuanFuQuanXianJieGuo(false)", null
+            )
+        }
+    }
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 创建 WebView 布局
         val layout = FrameLayout(this)
         rootLayout = layout
         webView = WebView(this).apply {
@@ -66,46 +137,86 @@ class MainActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            // 保持屏幕常亮，防止播放时休眠
-            keepScreenOn = true
+            // 不再全局保持屏幕常亮，由系统正常息屏
         }
         layout.addView(webView)
         setContentView(layout)
         
-        // 立即设置状态栏透明（不等待 decorView.post）
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
         
-        // 延迟设置状态栏图标颜色，确保 DecorView 已初始化
         window.decorView.post {
             updateStatusBarIconColor()
         }
 
-        // 初始化播放列表存储
         playlistRepository = PlaylistRepository(this)
-        playlistRepository.initDefaultPlaylistIfNeeded()
 
-        // 初始化 MediaSession
         mediaSessionManager = MediaSessionManager(this)
 
-        // 初始化剪贴板帮助类
         clipboardHelper = ClipboardHelper(this)
 
-        // 初始化 WebView Bridge
         webAppInterface = WebAppInterface(this, mediaSessionManager, clipboardHelper, playlistRepository)
+        mediaSessionManager.setGeQuQieHuanManager(webAppInterface.geQuQieHuanManager)
 
-        // 延迟初始化 WebView，避免阻塞主线程
-        initWebViewAsync()
+        quanJuYiChangChuLi = QuanJuYiChangChuLi(this)
 
-        // 配置返回键行为
+        xuanFuGeCiManager = XuanFuGeCiManager(this) { webAppInterface.currentPlayer }
+        xuanFuGeCiManager.chuShiHua()
+        quanJuYiChangChuLi.huiDiao = object : QuanJuYiChangChuLi.QuanJuCuoWuHuiDiao {
+            override fun onWangLuoDuanKai() {
+                android.util.Log.w("MainActivity", "全局异常处理：网络断开")
+            }
+            override fun onWangLuoHuiFu() {
+                android.util.Log.d("MainActivity", "全局异常处理：网络恢复")
+            }
+            override fun onBoFangQiBengKui(zhuangTai: QuanJuYiChangChuLi.BaoCunDeBoFangZhuangTai) {
+                android.util.Log.w("MainActivity", "全局异常处理：播放器崩溃，尝试恢复 - ${zhuangTai.geQuMing}")
+                quanJuYiChangChuLi.tongZhiH5HuiFuBoFang(zhuangTai)
+            }
+            override fun onFuWuChongQiHuiFu(zhuangTai: QuanJuYiChangChuLi.BaoCunDeBoFangZhuangTai) {
+                android.util.Log.d("MainActivity", "全局异常处理：服务重启恢复 - ${zhuangTai.geQuMing}")
+                mediaSessionManager.updateMetadata(
+                    zhuangTai.geQuMing, zhuangTai.geShou, zhuangTai.fengMian, zhuangTai.zongShiChang, zhuangTai.geQuId
+                )
+                quanJuYiChangChuLi.tongZhiH5HuiFuBoFang(zhuangTai)
+            }
+        }
+
+        setupWebView()
+
         setupBackPressedHandler()
 
-        // 检查通知权限（Android 13+）
-        checkNotificationPermission()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(meiTiJiangJiJieShouQi, IntentFilter("MEDIA_CONTROL_FALLBACK"), Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(yinPinZaoYinJieShouQi, IntentFilter(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY), Context.RECEIVER_NOT_EXPORTED)
+            if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                registerReceiver(lanYaDuanKaiJieShouQi, IntentFilter(android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED), Context.RECEIVER_NOT_EXPORTED)
+            }
+        } else {
+            registerReceiver(meiTiJiangJiJieShouQi, IntentFilter("MEDIA_CONTROL_FALLBACK"))
+            registerReceiver(yinPinZaoYinJieShouQi, IntentFilter(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                registerReceiver(lanYaDuanKaiJieShouQi, IntentFilter(android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED))
+            }
+        }
 
-        // 初始化 WakeLock
-        initWakeLock()
+        window.decorView.post {
+            playlistRepository.initDefaultPlaylistIfNeeded()
+            checkNotificationPermission()
+            initWakeLock()
+            quanJuYiChangChuLi.qiDongWangLuoJianKong()
+            RiZhiGuanLiQi.logInfo("MainActivity", "应用启动完成 - 版本: ${getBanBenXinXi()}")
+        }
+    }
+    
+    private fun getBanBenXinXi(): String {
+        return try {
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            "${packageInfo.versionName} (${packageInfo.versionCode})"
+        } catch (e: Exception) {
+            "未知"
+        }
     }
 
     /**
@@ -131,7 +242,7 @@ class MainActivity : AppCompatActivity() {
             }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             // Android 6-10 使用 systemUiVisibility
-            val view = window.decorView ?: return
+            val view = window.decorView
             val flags = view.systemUiVisibility
             val isDarkMode = (resources.configuration.uiMode and 
                 android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
@@ -164,7 +275,7 @@ class MainActivity : AppCompatActivity() {
     fun acquireWakeLock() {
         wakeLock?.let {
             if (!it.isHeld) {
-                it.acquire()
+                it.acquire(12 * 60 * 60 * 1000L)
             }
         }
     }
@@ -179,20 +290,19 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    
+    /**
+     * 检查 WakeLock 是否持有
+     */
+    fun isWakeLockHeld(): Boolean {
+        return wakeLock?.isHeld == true
+    }
 
     /**
      * 配置 WebView - 开启硬件加速和优化设置
      */
     /**
      * 异步初始化 WebView，避免阻塞主线程
-     */
-    private fun initWebViewAsync() {
-        // 直接在主线程初始化，无需延迟
-        setupWebView()
-    }
-
-    /**
-     * 配置 WebView - 开启硬件加速和优化设置
      */
     private fun setupWebView() {
         webView.apply {
@@ -243,10 +353,9 @@ class MainActivity : AppCompatActivity() {
                 allowFileAccess = true
                 allowContentAccess = true
 
-                // 关键修复：关闭危险的跨域访问，防止 XSS 攻击
-                // 原设置 allowUniversalAccessFromFileURLs = true 存在安全风险
-                // 现已关闭，如果遇到 CORS 问题，需要在服务器端配置 CORS 头
-                allowUniversalAccessFromFileURLs = false
+                // 允许 file:// 页面向外部发起跨域请求
+                // yunzhiapi.cn 等第三方API无法配置CORS头，必须启用
+                allowUniversalAccessFromFileURLs = true
                 allowFileAccessFromFileURLs = false
                 
                 // 数据库支持（DOM存储已兼容）
@@ -315,11 +424,20 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onConsoleMessage(message: android.webkit.ConsoleMessage?): Boolean {
                     message?.let {
-                        val msg = "[WebView] ${it.message()} (${it.sourceId()}:${it.lineNumber()})"
+                        val msg = "${it.message()} (${it.sourceId()}:${it.lineNumber()})"
                         when (it.messageLevel()) {
-                            android.webkit.ConsoleMessage.MessageLevel.ERROR -> android.util.Log.e("WebView", msg)
-                            android.webkit.ConsoleMessage.MessageLevel.WARNING -> android.util.Log.w("WebView", msg)
-                            else -> android.util.Log.d("WebView", msg)
+                            android.webkit.ConsoleMessage.MessageLevel.ERROR -> {
+                                android.util.Log.e("WebView", msg)
+                                RiZhiGuanLiQi.logError("WebView", msg)
+                            }
+                            android.webkit.ConsoleMessage.MessageLevel.WARNING -> {
+                                android.util.Log.w("WebView", msg)
+                                RiZhiGuanLiQi.logWarn("WebView", msg)
+                            }
+                            else -> {
+                                android.util.Log.d("WebView", msg)
+                                RiZhiGuanLiQi.logInfo("WebView", msg)
+                            }
                         }
                     }
                     return true
@@ -357,14 +475,19 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * 配置 WebView 缓存路径，解决 Android 10+ 缓存权限问题
-     * 使用现代缓存策略，避免使用废弃的 API
+     * 预创建 WebView 缓存目录结构，避免 Chromium 索引重建错误
      */
     private fun setupWebViewCache() {
         try {
-            // 创建应用私有缓存目录
-            val cacheDir = File(cacheDir, "webview_cache")
-            if (!cacheDir.exists()) {
-                cacheDir.mkdirs()
+            // 创建 WebView 默认缓存目录结构
+            val webViewCacheDir = File(cacheDir, "WebView/Default/HTTP Cache/Code Cache")
+            val jsCacheDir = File(webViewCacheDir, "js")
+            val wasmCacheDir = File(webViewCacheDir, "wasm")
+            
+            listOf(webViewCacheDir, jsCacheDir, wasmCacheDir).forEach { dir ->
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                }
             }
             
             // 启用 DOM 存储和数据库支持
@@ -374,7 +497,7 @@ class MainActivity : AppCompatActivity() {
                 databaseEnabled = true
             }
             
-            android.util.Log.d("WebViewCache", "缓存路径已设置: ${cacheDir.absolutePath}")
+            android.util.Log.d("WebViewCache", "缓存目录已初始化: ${webViewCacheDir.absolutePath}")
         } catch (e: Exception) {
             android.util.Log.e("WebViewCache", "设置缓存路径失败", e)
         }
@@ -384,14 +507,73 @@ class MainActivity : AppCompatActivity() {
      * 注入播放列表数据到 H5
      */
     private fun injectPlaylistData() {
-        val playlistJson = playlistRepository.loadPlaylist() ?: "{\"songs\":[]}"
-        val js = """
-            (function() {
-                window.playlistJsonData = $playlistJson;
-                console.log('[Android] 播放列表已注入，共 ' + ($playlistJson.songs?.length || 0) + ' 首歌曲');
-            })();
-        """.trimIndent()
+        val js = "try { var data = JSON.parse(AndroidBridge.loadPlaylist()); window.playlistJsonData = data; if (typeof songIds !== 'undefined' && data.songs && Array.isArray(data.songs)) { songIds = data.songs.map(function(s) { return s.id; }); playlistData = data.songs.map(function(s, i) { return { id: s.id, index: i, name: s.name || '未知歌曲', artist: s.artist || '未知歌手', pic: s.pic || '' }; }); isPlaylistLoaded = true; if (typeof renderPlaylist === 'function') renderPlaylist(); } console.log('[Android] 播放列表已注入，共 ' + (data.songs ? data.songs.length : 0) + ' 首歌曲'); } catch(e) { console.error('[Android] 播放列表注入失败:', e); }"
         webView.evaluateJavascript(js, null)
+        // 初始化API配置单例（确保只读取一次 api_config.json）
+        ApiPeiZhiDanLi.chuShiHua(this)
+        // 注入歌词API配置（Web axios 兜底路径使用）
+        zhuRuGeCiApiPeiZhi()
+        // 注入搜索API配置（Web axios 兜底路径使用）
+        zhuRuSouSuoApiPeiZhi()
+        // 注入云智API配置（Web API_SERVERS 使用）
+        zhuRuYunZhiApiPeiZhi()
+    }
+
+    /**
+     * 从 ApiPeiZhiDanLi 读取歌词API配置并注入到 WebView
+     * Web 层 fetchLyricsFromAPI 用 window.__LYRIC_API_URL__ / __LYRIC_API_TOKEN__
+     */
+    private fun zhuRuGeCiApiPeiZhi() {
+        try {
+            val url = ApiPeiZhiDanLi.huoQuUrl("lyric_api")
+            val token = ApiPeiZhiDanLi.huoQuToken("lyric_api")
+            val safeUrl = url.replace("\\", "\\\\").replace("'", "\\'")
+            val safeToken = token.replace("\\", "\\\\").replace("'", "\\'")
+            val injectJs = "try{window.__LYRIC_API_URL__='$safeUrl';window.__LYRIC_API_TOKEN__='$safeToken';console.log('[Android] 歌词API配置已注入')}catch(e){console.error('[Android] 歌词API配置注入失败',e)}"
+            webView.evaluateJavascript(injectJs, null)
+            android.util.Log.d("MainActivity", "歌词API配置已注入: url=$url, tokenConfigured=${token.isNotEmpty() && !token.startsWith("<TBD")}")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "注入歌词API配置失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 从 ApiPeiZhiDanLi 读取搜索API配置并注入到 WebView
+     * Web 层 axios 降级搜索用 window.__SEARCH_API_URL__ / __SEARCH_API_TOKEN__
+     */
+    private fun zhuRuSouSuoApiPeiZhi() {
+        try {
+            val url = ApiPeiZhiDanLi.huoQuUrl("search_api")
+            val token = ApiPeiZhiDanLi.huoQuToken("search_api")
+            val safeUrl = url.replace("\\", "\\\\").replace("'", "\\'")
+            val safeToken = token.replace("\\", "\\\\").replace("'", "\\'")
+            val injectJs = "try{window.__SEARCH_API_URL__='$safeUrl';window.__SEARCH_API_TOKEN__='$safeToken';console.log('[Android] 搜索API配置已注入')}catch(e){console.error('[Android] 搜索API配置注入失败',e)}"
+            webView.evaluateJavascript(injectJs, null)
+            android.util.Log.d("MainActivity", "搜索API配置已注入: url=$url, tokenConfigured=${token.isNotEmpty()}")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "注入搜索API配置失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 从 ApiPeiZhiDanLi 读取云智API配置并注入到 WebView
+     * Web 层 API_SERVERS 用 window.__YUNZHI_API_URL__ / __YUNZHI_API_TOKEN__
+     */
+    private fun zhuRuYunZhiApiPeiZhi() {
+        try {
+            val url = ApiPeiZhiDanLi.huoQuUrl("yunzhi_api")
+            val token = ApiPeiZhiDanLi.huoQuToken("yunzhi_api")
+            val safeUrl = url.replace("\\", "\\\\").replace("'", "\\'")
+            val safeToken = token.replace("\\", "\\\\").replace("'", "\\'")
+            val injectJs = "try{window.__YUNZHI_API_URL__='$safeUrl';window.__YUNZHI_API_TOKEN__='$safeToken';console.log('[Android] 云智API配置已注入')}catch(e){console.error('[Android] 云智API配置注入失败',e)}"
+            webView.evaluateJavascript(injectJs, null)
+            android.util.Log.d("MainActivity", "云智API配置已注入: url=$url, tokenConfigured=${token.isNotEmpty()}")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "注入云智API配置失败: ${e.message}")
+        }
+        // 无论注入成功与否，都通知 H5 初始化 API_SERVERS
+        // 即使 window.__XXX__ 未注入，initApiServers 也会用空字符串初始化，避免 API_SERVERS 永远为空数组
+        webView.evaluateJavascript("if(typeof initApiServers==='function'){initApiServers()}else{console.warn('[Android] initApiServers未定义')}", null)
     }
 
     /**
@@ -399,7 +581,13 @@ class MainActivity : AppCompatActivity() {
      */
     fun reloadPlaylist() {
         val playlistJson = playlistRepository.loadPlaylist() ?: "{\"songs\":[]}"
-        val js = "if(window.reloadPlaylistFromAndroid) window.reloadPlaylistFromAndroid(${playlistJson});"
+        webAppInterface.tongBuBoFangLieBiao()
+        val escaped = playlistJson.replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+        val js = "if(window.reloadPlaylistFromAndroid) window.reloadPlaylistFromAndroid(JSON.parse('$escaped'));"
         webView.evaluateJavascript(js, null)
     }
 
@@ -432,7 +620,11 @@ class MainActivity : AppCompatActivity() {
      * 从 URL 加载专辑封面并转换为 Bitmap
      */
     fun loadAlbumArt(url: String, callback: (Bitmap?) -> Unit) {
-        Glide.with(this)
+        if (url.isBlank() || url.startsWith("./")) {
+            callback(null)
+            return
+        }
+        Glide.with(applicationContext)
             .asBitmap()
             .load(url)
             .placeholder(R.drawable.ic_default_album)
@@ -456,19 +648,60 @@ class MainActivity : AppCompatActivity() {
      * 发送控制命令到 WebView
      */
     fun sendCommandToWeb(command: String) {
-        // 转义单引号防止JS注入
         val safeCommand = command.replace("'", "\\'")
         val js = "if(window.handleNativeCommand) window.handleNativeCommand('$safeCommand');"
         runOnUiThread {
-            webView.evaluateJavascript(js, null)
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            try {
+                webView.evaluateJavascript(js, null)
+            } catch (e: Exception) {
+                android.util.Log.w("MainActivity", "sendCommandToWeb失败: ${e.message}")
+            }
         }
     }
 
+    /** Activity恢复时重新激活媒体会话 */
     override fun onResume() {
         super.onResume()
-        // WebView 恢复
         webView.resumeTimers()
         mediaSessionManager.setActive(true)
+        webAppInterface.tongZhiH5ShengMingZhouQi("resume")
+        
+        // 关键修复：恢复时同步当前播放状态到H5，避免封面停留在旧状态
+        tongBuDangQianBoFangZhuangTai()
+    }
+    
+    /**
+     * 同步当前播放状态到H5（解决后台返回后封面不更新）
+     */
+    private fun tongBuDangQianBoFangZhuangTai() {
+        try {
+            val player = webAppInterface.currentPlayer
+            if (player != null) {
+                val isPlaying = player.isPlayingState()
+                val position = player.getCurrentPosition()
+                val duration = player.getDuration()
+                
+                // 同步播放状态
+                webAppInterface.tongZhiH5BoFangZhuangTaiBianHua(isPlaying)
+                
+                // 同步当前歌曲信息（歌名、歌手、封面），解决息屏切歌后UI跳回上一首的问题
+                // 注意：此方法会保留进度，不重置进度
+                webAppInterface.geQuQieHuanManager.tongBuDangQianGeQuZhiH5()
+                
+                // 同步进度（在歌曲信息同步后再次同步进度，确保进度正确）
+                if (duration > 0) {
+                    webView.postDelayed({
+                        val js = "if(window.onNativeProgressChanged) window.onNativeProgressChanged($position, $duration);"
+                        webView.evaluateJavascript(js, null)
+                    }, 100)
+                }
+                
+                RiZhiGuanLiQi.logInfo("MainActivity", "恢复同步状态: isPlaying=$isPlaying, position=$position")
+            }
+        } catch (e: Exception) {
+            RiZhiGuanLiQi.logError("MainActivity", "同步播放状态失败: ${e.message}")
+        }
     }
 
     // 当前歌曲信息缓存
@@ -505,10 +738,12 @@ class MainActivity : AppCompatActivity() {
     fun startPlaybackService() {
         acquireWakeLock()
 
-        sendServiceIntent(
-            action = MediaPlaybackService.ACTION_UPDATE_METADATA,
-            playing = true
-        )
+        mediaSessionManager.getSessionToken()?.let {
+            MediaPlaybackService.setSessionToken(it)
+        }
+
+        val intent = Intent(this, MediaPlaybackService::class.java)
+        startService(intent)
     }
 
     /**
@@ -519,25 +754,17 @@ class MainActivity : AppCompatActivity() {
         currentSongArtist = artist
         currentSongCover = cover
         currentSongDuration = duration
-
-        sendServiceIntent(
-            action = MediaPlaybackService.ACTION_UPDATE_METADATA,
-            title = title,
-            artist = artist,
-            cover = cover,
-            duration = duration,
-            playing = true
-        )
     }
 
     /**
      * 更新后台服务的播放状态
      */
     fun updateServicePlaybackState(playing: Boolean) {
-        sendServiceIntent(
-            action = MediaPlaybackService.ACTION_UPDATE_METADATA,
-            playing = playing
-        )
+        if (playing) {
+            acquireWakeLock()
+        } else {
+            releaseWakeLock()
+        }
     }
 
     /**
@@ -551,31 +778,54 @@ class MainActivity : AppCompatActivity() {
         stopService(intent)
     }
 
+    /** 处理新的Intent（通知栏/锁屏控制命令由此进入） */
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        // 处理媒体控制命令（从通知栏/锁屏）
         intent?.let {
             if (it.action == "MEDIA_CONTROL") {
                 val command = it.getStringExtra("command")
                 command?.let { cmd ->
-                    sendCommandToWeb(cmd)
+                    when (cmd) {
+                        "play" -> {
+                            val player = webAppInterface.currentPlayer
+                            if (player != null && !player.isPlayingState()) {
+                                player.resume()
+                                webAppInterface.mediaSessionManager.setPlayStateFromNative(true)
+                                webAppInterface.tongZhiH5BoFangZhuangTaiBianHua(true)
+                            } else {
+                                sendCommandToWeb(cmd)
+                            }
+                        }
+                        "pause" -> {
+                            val player = webAppInterface.currentPlayer
+                            if (player != null && player.isPlayingState()) {
+                                player.pause()
+                                webAppInterface.mediaSessionManager.setPlayStateFromNative(false)
+                                webAppInterface.tongZhiH5BoFangZhuangTaiBianHua(false)
+                            } else {
+                                sendCommandToWeb(cmd)
+                            }
+                        }
+                        else -> sendCommandToWeb(cmd)
+                    }
                 }
             }
         }
     }
 
+    /** Activity暂停时保持WebView运行（确保后台播放继续） */
     override fun onPause() {
         super.onPause()
-        // 关键：不暂停 WebView，确保后台播放继续
-        // 保持 timers 运行，否则 JavaScript 会停止
         webView.resumeTimers()
         mediaSessionManager.setActive(true)
+        webAppInterface.tongZhiH5ShengMingZhouQi("pause")
     }
 
+    /** Activity停止时保持WebView定时器运行（确保后台播放继续） */
     override fun onStop() {
         super.onStop()
-        // 进入后台时，确保 timers 继续运行
         webView.resumeTimers()
+        webAppInterface.tongZhiH5ShengMingZhouQi("stop")
     }
 
     // onDestroy 方法已合并到文件末尾
@@ -609,6 +859,11 @@ class MainActivity : AppCompatActivity() {
     fun getWebView(): WebView {
         return webView
     }
+
+    /** 获取媒体会话管理器实例 */
+    fun getMediaSessionManager(): MediaSessionManager {
+        return mediaSessionManager
+    }
     
     /**
      * 获取帧布局
@@ -616,26 +871,52 @@ class MainActivity : AppCompatActivity() {
      */
     private var rootLayout: FrameLayout? = null
     
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        when (level) {
+            android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
+            android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
+                android.util.Log.w("MainActivity", "内存紧张，清理缓存")
+                webView.clearCache(true)
+            }
+        }
+    }
+
+    /** Activity销毁时释放所有资源（播放器、媒体会话、WebView） */
     override fun onDestroy() {
         super.onDestroy()
         
-        // 停止后台播放服务
-        stopPlaybackService()
-        
-        // 释放 WakeLock
-        releaseWakeLock()
-        
-        // 释放原生音频播放器
-        webAppInterface.nativeRelease()
-        
-        // 释放媒体会话
-        mediaSessionManager.release()
-        
-        // 销毁 WebView 避免内存泄漏
+        RiZhiGuanLiQi.logInfo("MainActivity", "应用销毁 - 开始清理资源")
+
+        try { unregisterReceiver(meiTiJiangJiJieShouQi) } catch (_: Exception) {}
+        try { unregisterReceiver(yinPinZaoYinJieShouQi) } catch (_: Exception) {}
+        try { unregisterReceiver(lanYaDuanKaiJieShouQi) } catch (_: Exception) {}
+
         rootLayout?.removeView(webView)
+        webView.stopLoading()
+        webView.loadUrl("about:blank")
+        webView.clearHistory()
         webView.removeAllViews()
         webView.destroy()
-        
-        android.util.Log.d("MainActivity", "Activity 已销毁")
+
+        if (::quanJuYiChangChuLi.isInitialized) {
+            quanJuYiChangChuLi.shiFang()
+        }
+
+        if (::xuanFuGeCiManager.isInitialized) {
+            xuanFuGeCiManager.shiFang()
+        }
+
+        stopPlaybackService()
+        releaseWakeLock()
+
+        webAppInterface.nativeRelease()
+        webAppInterface.qingLi()
+        webAppInterface.geQuQieHuanManager.zhongZhiYuJiaZai()
+
+        mediaSessionManager.release()
+
+        RiZhiGuanLiQi.logInfo("MainActivity", "应用销毁 - 资源清理完成")
+        android.util.Log.d("MainActivity", "Activity 已销毁，资源已清理")
     }
 }

@@ -1,19 +1,43 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.kapt")
 }
 
+// 加载 local.properties
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        load(localPropertiesFile.inputStream())
+    }
+}
+
 android {
     namespace = "com.shiyin.music"
     compileSdk = 34
+
+    val keystoreFile = localProperties.getProperty("keystoreFile", "")
+    val keystorePassword = localProperties.getProperty("keystorePassword", "")
+    val keyAliasValue = localProperties.getProperty("keyAliasValue", "")
+    val keyPasswordValue = localProperties.getProperty("keyPasswordValue", "")
+
+    signingConfigs {
+        create("release") {
+            storeFile = if (keystoreFile.isNotEmpty()) file(keystoreFile) else null
+            storePassword = keystorePassword
+            keyAlias = keyAliasValue
+            keyPassword = keyPasswordValue
+        }
+    }
 
     defaultConfig {
         applicationId = "com.shiyin.music"
         minSdk = 24
         targetSdk = 34
-        versionCode = 7
-        versionName = "4.1.0"
+        versionCode = 22
+        versionName = "5.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -22,6 +46,12 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // 仅在签名配置有效时使用
+            signingConfig = if (keystoreFile.isNotEmpty()) {
+                signingConfigs.getByName("release")
+            } else {
+                null
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -53,6 +83,15 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // APK文件名自动带版本号
+    applicationVariants.all {
+        val variant = this
+        variant.outputs.all {
+            val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
+            output.outputFileName = "扣扣云-v${variant.versionName}-${variant.buildType.name}.apk"
+        }
+    }
 }
 
 dependencies {
@@ -62,8 +101,8 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     
-    // Media Session 支持（使用超稳定版本 1.4.3）
-    implementation("androidx.media:media:1.4.3")
+    // Media Session 支持（使用稳定版本）
+    implementation("androidx.media:media:1.5.0")
     
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
@@ -86,7 +125,7 @@ dependencies {
     
     // OkHttp - 网络请求
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    
+
     // 测试
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

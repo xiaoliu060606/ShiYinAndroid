@@ -1,28 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- 允许明文流量（HTTP） -->
-    <base-config cleartextTrafficPermitted="true">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
 
-    <!-- 允许访问本地文件 -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
     </domain-config>
 
-    <!-- 允许访问网易云音乐 API 和音频源 -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">music.126.net</domain>
         <domain includeSubdomains="true">m10.music.126.net</domain>
         <domain includeSubdomains="true">m701.music.126.net</domain>
         <domain includeSubdomains="true">m801.music.126.net</domain>
         <domain includeSubdomains="true">m802.music.126.net</domain>
-        <domain includeSubdomains="true">api.cenguigui.cn</domain>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">apicx.asia</domain>
+        <domain includeSubdomains="true">api.vkeys.cn</domain>
         <domain includeSubdomains="true">apis.netstart.cn</domain>
-        <domain includeSubdomains="true">unpkg.com</domain>
-        <domain includeSubdomains="true">cdnjs.cloudflare.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
     </domain-config>
 </network-security-config>

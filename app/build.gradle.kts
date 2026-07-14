@@ -36,8 +36,8 @@ android {
         applicationId = "com.shiyin.music"
         minSdk = 24
         targetSdk = 34
-        versionCode = 22
-        versionName = "5.6"
+        versionCode = 28
+        versionName = "5.8.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

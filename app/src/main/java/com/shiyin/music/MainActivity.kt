@@ -118,6 +118,14 @@ class MainActivity : AppCompatActivity() {
             webView.evaluateJavascript(
                 "javascript:typeof onXuanFuQuanXianJieGuo==='function'&&onXuanFuQuanXianJieGuo(true)", null
             )
+            // 从设置返回后Activity可能被重建，播放器已销毁 → 通知H5恢复播放
+            val savedState = quanJuYiChangChuLi.duQuBaoCunDeZhuangTai()
+            if (savedState != null && savedState.shiFouBoFangZhong) {
+                android.util.Log.d("MainActivity", "悬浮窗权限返回，恢复播放状态: ${savedState.geQuMing}")
+                webView.postDelayed({
+                    quanJuYiChangChuLi.tongZhiH5HuiFuBoFang(savedState)
+                }, 1000)
+            }
         } else {
             webView.evaluateJavascript(
                 "javascript:typeof onXuanFuQuanXianJieGuo==='function'&&onXuanFuQuanXianJieGuo(false)", null
@@ -669,6 +677,31 @@ class MainActivity : AppCompatActivity() {
         
         // 关键修复：恢复时同步当前播放状态到H5，避免封面停留在旧状态
         tongBuDangQianBoFangZhuangTai()
+        
+        // 弱网环境兜底：如果息屏时歌曲播完后卡住没切歌，回前台时自动触发下一首
+        // 延迟执行避免 onResume 瞬间播放器状态不一致导致误触发
+        webView.postDelayed({ jianCeQieGeKaZhu() }, 2000)
+    }
+    
+    /**
+     * 检测切歌是否卡住：如果播放器空闲且播放列表还有歌，自动触发下一首
+     */
+    private fun jianCeQieGeKaZhu() {
+        try {
+            val player = webAppInterface.currentPlayer ?: return
+            if (player.isPlayingState()) return
+            if (webAppInterface.geQuQieHuanManager.lieBiaoShiFouKong()) return
+            val position = player.getCurrentPosition()
+            val duration = player.getDuration()
+            // 已播完（快到结尾）但没开始下一首
+            // 使用 Math.abs 防止某些音频格式 position > duration 时误触发
+            if (duration > 0 && position > 0 && kotlin.math.abs(duration - position) < 5000) {
+                android.util.Log.d("MainActivity", "[卡住重试] 歌曲播完但未切歌，触发原生切歌: pos=$position, dur=$duration")
+                webAppInterface.geQuQieHuanManager.qieGe("next")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "[卡住重试] 异常: ${e.message}")
+        }
     }
     
     /**

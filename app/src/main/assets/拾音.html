@@ -8,7 +8,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.qqmusic.qq.com https://*.y.qq.com https://*.qq.com https://*.music.163.com https://*.163.com https://*.126.net https://*.kugou.com https://*.kuwo.cn https://*.bilibili.com https://*.bilivideo.com https://*.bilivideo.cn https://*.yunzhiapi.cn https://*.netstart.cn https://*.vkeys.cn https://*.cenguigui.cn; connect-src *; img-src 'self' data: blob: https://*.qqmusic.qq.com https://*.y.qq.com https://*.qq.com https://*.music.163.com https://*.163.com https://*.126.net https://*.kugou.com https://*.kuwo.cn https://*.bilibili.com https://*.bilivideo.com https://*.bilivideo.cn https://*.gtimg.cn https://*.pstatp.com https://*.oschina.net https://*.yunzhiapi.cn https://*.126.net https://*.tuxiangyan.com https://*.netstart.cn https://*.vkeys.cn https://*.cenguigui.cn; media-src *; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com;">
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.qqmusic.qq.com https://*.y.qq.com https://*.qq.com https://*.music.163.com https://*.163.com https://*.126.net https://*.kugou.com https://*.kuwo.cn https://*.bilibili.com https://*.bilivideo.com https://*.bilivideo.cn https://*.yunzhiapi.cn https://*.netstart.cn https://*.vkeys.cn; connect-src *; img-src 'self' data: blob: https://*.qqmusic.qq.com https://*.y.qq.com https://*.qq.com https://*.music.163.com https://*.163.com https://*.126.net https://*.kugou.com https://*.kuwo.cn https://*.bilibili.com https://*.bilivideo.com https://*.bilivideo.cn https://*.gtimg.cn https://*.pstatp.com https://*.oschina.net https://*.yunzhiapi.cn https://*.126.net https://*.tuxiangyan.com https://*.netstart.cn https://*.vkeys.cn; media-src *; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com;">
     <title>拾音</title>
     <!-- axios 内嵌完整实现 -->
     <script>
@@ -831,32 +831,44 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.15);
             z-index: 9999;
-            display: none;
+            opacity: 0;
+            visibility: hidden;
+            transition:
+                opacity 0.3s ease,
+                visibility 0s linear 0.3s;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-        }
-
-        .ding-shi-tan-chuang.xian-shi {
             display: flex;
         }
 
+        .ding-shi-tan-chuang.xian-shi {
+            opacity: 1;
+            visibility: visible;
+            transition-delay: 0s;
+        }
+
         .ding-shi-tan-chuang-nei-rong {
-            background: rgba(30, 30, 40, 0.8);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            position: relative;
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 20px;
             padding: 24px;
             width: 260px;
             max-width: 90vw;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .ding-shi-tan-chuang.xian-shi .ding-shi-tan-chuang-nei-rong {
+            opacity: 1;
+            transform: scale(1);
         }
 
         .ding-shi-biao-ti {
@@ -1101,12 +1113,10 @@
             transform: translateY(-50%) scale(0.9);
             width: 260px;
             max-height: 400px;
-            background: rgba(30, 30, 40, 0.8);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             z-index: 999;
             opacity: 0;
             visibility: hidden;
@@ -1132,12 +1142,10 @@
             transform: translateY(-50%) scale(0.9);
             width: 280px;
             max-height: 420px;
-            background: rgba(25, 25, 35, 0.92);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             z-index: 999;
             opacity: 0;
             visibility: hidden;
@@ -1408,6 +1416,18 @@
             border-color: #fff;
         }
 
+        .xuanfu-tip {
+            padding: 0 18px 12px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.35);
+            line-height: 1.4;
+        }
+        .xuanfu-tip .lyrics-toggle-label {
+            display: inline;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
 /* 悬浮窗设置面板 - 开关控制显示隐藏 */
 .xuanfu-settings-panel {
             max-height: 0;
@@ -1489,12 +1509,10 @@
             transform: translateY(-50%) scale(0.9);
             width: 300px;
             max-height: 420px;
-            background: rgba(25, 25, 35, 0.92);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             z-index: 1001;
             opacity: 0;
             visibility: hidden;
@@ -1727,12 +1745,10 @@
             transform: translateY(-50%) scale(0.9);
             width: 300px;
             max-height: 520px;
-            background: rgba(25, 25, 35, 0.92);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             z-index: 1001;
             opacity: 0;
             visibility: hidden;
@@ -2030,6 +2046,28 @@
             text-overflow: ellipsis;
         }
 
+        .playlist-item-source {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 18px;
+            padding: 0 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+        .playlist-item-source.wy {
+            background: rgba(239, 68, 68, 0.2);
+            color: rgb(239, 68, 68);
+        }
+        .playlist-item-source.qq {
+            background: rgba(74, 222, 128, 0.2);
+            color: rgb(74, 222, 128);
+        }
+
         .playlist-item-artist {
             font-size: 11px;
             color: rgba(255, 255, 255, 0.6);
@@ -2076,12 +2114,10 @@
             transform: translateY(-50%) scale(0.9);
             width: 260px;
             max-height: 400px;
-            background: rgba(30, 30, 40, 0.8);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             z-index: 999;
             opacity: 0;
             visibility: hidden;
@@ -2099,8 +2135,41 @@
             pointer-events: auto;
         }
 
+        .search-tabs {
+            display: flex;
+            padding: 12px 18px 0 18px;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .search-tab {
+            padding: 4px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.06);
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .search-tab:hover {
+            color: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .search-tab.active {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .search-tab[data-source="qq"].active {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.15);
+        }
+
         .search-header {
-            padding: 18px 18px 12px 18px;
+            padding: 12px 18px 12px 18px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -2140,10 +2209,19 @@
 
         .search-content {
             flex: 1;
-            overflow-y: auto;
+            max-height: 100px;
+            overflow: hidden;
             padding: 8px 12px 15px 12px;
             scrollbar-width: thin;
             scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+            transition:
+                max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease;
+        }
+        .search-content.has-results {
+            max-height: 340px;
+            overflow-y: auto;
+            opacity: 1;
         }
 
         .search-content::-webkit-scrollbar {
@@ -2333,12 +2411,10 @@
             transform: translateY(-50%) scale(0.9);
             width: 280px;
             max-height: 420px;
-            background: rgba(30, 30, 40, 0.8);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             z-index: 999;
             opacity: 0;
             visibility: hidden;
@@ -2486,19 +2562,17 @@
             transform: none;
         }
 
-        /* 导入成功提示框 - 磨砂玻璃效果 */
+        /* 导入成功提示框 - 液体玻璃效果 */
         .import-toast {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0.9);
             width: 280px;
-            background: rgba(30, 30, 40, 0.9);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             z-index: 1000;
             opacity: 0;
             visibility: hidden;
@@ -2855,12 +2929,12 @@
                 left: 0;
                 width: 100vw;
                 height: 100vh;
-                background: rgba(0, 0, 0, 0.6);
-                backdrop-filter: blur(3px);
+                background: rgba(0, 0, 0, 0.4);
+                backdrop-filter: blur(4px);
                 z-index: 998;
                 opacity: 0;
                 visibility: hidden;
-                transition: all 0.3s ease;
+                transition: all 0.35s ease;
                 pointer-events: none;
             }
 
@@ -2895,6 +2969,50 @@
                 height: 24px;
                 line-height: 20px;
             }
+        }
+
+        /* ==================== Liquid Glass ==================== */
+        .lg-container {
+            isolation: isolate;
+            overflow: hidden;
+        }
+        .lg-backdrop {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            will-change: backdrop-filter;
+            backdrop-filter: blur(60px) saturate(180%) brightness(1.05);
+            -webkit-backdrop-filter: blur(60px) saturate(180%) brightness(1.05);
+            pointer-events: none;
+            border-radius: inherit;
+        }
+        .lg-backdrop::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.12) 0%,
+                transparent 50%,
+                rgba(255, 255, 255, 0.03) 100%
+            );
+            pointer-events: none;
+        }
+        .lg-specular {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            border-radius: inherit;
+            box-shadow:
+                inset 0 1.5px 0 rgba(255, 255, 255, 0.45),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+                0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+        }
+        .lg-container > :not(.lg-backdrop):not(.lg-specular) {
+            position: relative;
+            z-index: 3;
         }
     </style>
     <link rel="icon"
@@ -2975,67 +3093,6 @@
             </div>
             <div class="settings-divider"></div>
             <div class="settings-content">
-                <!-- 音源切换 -->
-                <div class="settings-section-title" id="yinYuanSectionTitle">音源切换</div>
-                <div class="settings-group">
-                    <div class="settings-item yin-yuan-xuan-xiang" id="yinYuanAuto" data-value="auto">
-                        <div class="settings-item-left">
-                            <div class="settings-item-icon">
-                                <i class="fa-solid fa-robot"></i>
-                            </div>
-                            <div class="settings-item-text">
-                                自动切换
-                                <small>主API失败自动切换备用</small>
-                            </div>
-                        </div>
-                        <div class="settings-item-check">
-                            <i class="fa-solid fa-check"></i>
-                        </div>
-                    </div>
-                    <div class="settings-item yin-yuan-xuan-xiang" id="yinYuanCenguigui" data-value="yunzhi">
-                        <div class="settings-item-left">
-                            <div class="settings-item-icon">
-                                <i class="fa-solid fa-server"></i>
-                            </div>
-                            <div class="settings-item-text">
-                                云智API
-                                <small>主音源，高解析</small>
-                            </div>
-                        </div>
-                        <div class="settings-item-check">
-                            <i class="fa-solid fa-check"></i>
-                        </div>
-                    </div>
-                    <div class="settings-item yin-yuan-xuan-xiang" id="yinYuanCenguiguiCn" data-value="cenguigui_cn">
-                        <div class="settings-item-left">
-                            <div class="settings-item-icon">
-                                <i class="fa-solid fa-dragon"></i>
-                            </div>
-                            <div class="settings-item-text">
-                                岑鬼鬼
-                                <small>已停用（服务端关停）</small>
-                            </div>
-                        </div>
-                        <div class="settings-item-check">
-                            <i class="fa-solid fa-check"></i>
-                        </div>
-                    </div>
-                    <div class="settings-item yin-yuan-xuan-xiang" id="yinYuanApicx" data-value="apicx">
-                        <div class="settings-item-left">
-                            <div class="settings-item-icon">
-                                <i class="fa-solid fa-cloud"></i>
-                            </div>
-                            <div class="settings-item-text">
-                                残影API
-                                <small>副音源</small>
-                            </div>
-                        </div>
-                        <div class="settings-item-check">
-                            <i class="fa-solid fa-check"></i>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 日志管理 -->
                 <div class="settings-section-title">日志管理</div>
                 <div class="settings-group">
@@ -3091,7 +3148,6 @@
         <!-- 悬浮窗歌词设置弹窗（放在设置面板外部，避免被父面板隐藏） -->
         <div class="xuanfu-settings-modal" id="xuanFuSettingsModal">
             <div class="xuanfu-settings-header">
-                <button class="xuanfu-settings-back" id="xuanFuSettingsBack"><i class="fa-solid fa-chevron-left"></i></button>
                 <div class="xuanfu-settings-title">悬浮窗歌词</div>
             </div>
             <div class="xuanfu-settings-content">
@@ -3152,6 +3208,7 @@
                         <div class="xuanfu-color-swatch" data-color="#CE93D8" style="background:#CE93D8"></div>
                         <div class="xuanfu-color-swatch" data-color="#FFD54F" style="background:#FFD54F"></div>
                     </div>
+                    <div class="xuanfu-tip">悬浮歌词开启后自动加载，无需额外操作</div>
                 </div>
             </div>
         </div>
@@ -3183,6 +3240,10 @@
         <!-- 搜索面板 - 移出hezi，位于左侧 -->
         <!-- 搜索面板 -->
         <div class="search-panel" id="searchPanel">
+            <div class="search-tabs">
+                <div class="search-tab active" data-source="wy">网易云</div>
+                <div class="search-tab" data-source="qq">QQ音乐</div>
+            </div>
             <div class="search-header">
                 <div class="search-input-wrapper">
                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -3366,10 +3427,6 @@
         const settingsPanel = document.getElementById('settingsPanel');
         const exportLogItem = document.getElementById('exportLogItem');
         const clearLogItem = document.getElementById('clearLogItem');
-        const yinYuanAuto = document.getElementById('yinYuanAuto');
-        const yinYuanCenguigui = document.getElementById('yinYuanCenguigui');
-        const yinYuanCenguiguiCn = document.getElementById('yinYuanCenguiguiCn');
-        const yinYuanApicx = document.getElementById('yinYuanApicx');
 
         // 搜索相关元素
         const searchToggle = document.getElementById('searchToggle');
@@ -3754,15 +3811,15 @@
                     mode: 'id'  // 使用歌曲ID模式
                 },
                 {
-                    name: 'apicx',
-                    displayName: '残影API',
-                    url: window.__SEARCH_API_URL__ || '',
-                    token: window.__SEARCH_API_TOKEN__ || '',
+                    name: 'qqmusic',
+                    displayName: 'QQ音乐',
+                    url: window.__QQMUSIC_API_URL__ || '',
+                    token: window.__QQMUSIC_API_TOKEN__ || '',
                     priority: 2,
                     mode: 'search'  // 使用歌名搜索模式
                 }
             ];
-            console.log('[API] API_SERVERS 已初始化, yunzhi=' + (API_SERVERS[0].url ? '已配置' : '未配置') + ', apicx=' + (API_SERVERS[1].url ? '已配置' : '未配置'));
+            console.log('[API] API_SERVERS 已初始化, yunzhi=' + (API_SERVERS[0].url ? '已配置' : '未配置') + ', qqmusic=' + (API_SERVERS[1].url ? '已配置' : '未配置'));
             // 初始化API模式
             currentApiIndex = getCurrentApiMode();
             console.log('[API] 初始化API模式: ' + API_SERVERS[currentApiIndex].displayName);
@@ -3778,7 +3835,7 @@
             // 每次启动都重置为主API，避免上次失败导致的API切换残留
             const savedMode = localStorage.getItem(API_MODE_KEY);
 
-            if (savedMode === 'apicx') {
+            if (savedMode === 'qqmusic') {
             }
 
             localStorage.setItem(API_MODE_KEY, 'yunzhi');
@@ -4098,6 +4155,11 @@
 
         
 
+        // QQ音乐API地址 - 运行时由 Native 注入 window.__QQMUSIC_API_URL__ / __QQMUSIC_API_TOKEN__
+        // 兜底：使用搜索API的URL和Token（同一服务端），并标记为占位符避免泄露
+        window.__QQMUSIC_API_URL__ = window.__QQMUSIC_API_URL__ || "https://apicx.asia/api/qqmusic";
+        window.__QQMUSIC_API_TOKEN__ = window.__QQMUSIC_API_TOKEN__ || window.__SEARCH_API_TOKEN__ || "";
+
         // 歌词API地址 - 由 Native 启动期注入到 window.__LYRIC_API_URL__ / __LYRIC_API_TOKEN__
 
         // 定时器管理
@@ -4277,8 +4339,9 @@
             // 生成新的随机队列
             randomQueue = fisherYatesShuffle(songIds);
 
-            // 只有当当前歌曲在播放列表中时才调整位置
-            const currentPos = randomQueue.indexOf(currentSongId);
+            // 关键修复：使用String()统一类型比较，防止number/string类型不匹配
+            const currentSongIdStr = String(currentSongId);
+            const currentPos = randomQueue.findIndex(id => String(id) === currentSongIdStr);
             if (currentPos >= 0) {
                 // 将当前播放歌曲移到队列第一位
                 if (currentPos > 0) {
@@ -4869,7 +4932,7 @@
                 // 启动同步
                 startSyncInterval();
                 clearInterval(progressUpdateInterval);
-                progressUpdateInterval = setInterval(updateProgress, 100);
+                progressUpdateInterval = setInterval(updateProgress, 250);
 
                 // 懒加载封面图：播放稳定后，延迟加载真实封面
                 if (pendingCoverUrl) {
@@ -4982,11 +5045,15 @@
                 // document.hidden 作为 WebView visibility API 的补充。
                 if (document.hidden || _isAppBackground) {
                     // 页面不可见（后台/息屏）：保存快照供前台恢复使用
-                    // 同时处理切歌（加载歌词等），使悬浮窗歌词能及时更新
+                    // 仅加载歌词供悬浮窗同步，不更新UI、不设置currentPlayingSongId，
+                    // 避免回前台时 _processNativeSongChange 被 duplicate check 跳过
                     _nativeStateSnapshot = info;
                     _hasPendingSnapshot = true;
-                    console.log('[原生切歌] 后台，保存快照并处理: ' + info.name);
-                    _processNativeSongChange(info);
+                    console.log('[原生切歌] 后台，保存快照，加载歌词: ' + info.name);
+                    if (shouldLoadLyrics() && typeof loadLyrics === 'function') {
+                        lyricRetryCount = 0;
+                        loadLyrics(info.id);
+                    }
                     return;
                 }
                 
@@ -5002,6 +5069,13 @@
                     
                     _nativeNotificationDebounceTimer = setTimeout(function() {
                         if (_nativeStateSnapshot) {
+                            // freshness 检查：如果用户已在防抖窗口内主动切歌，快照已过期
+                            if (typeof currentPlayingSongId !== 'undefined' && currentPlayingSongId !== null
+                                && String(currentPlayingSongId) !== String(_nativeStateSnapshot.id)) {
+                                console.log('[原生切歌] 防抖快照已过期，跳过恢复: 当前=' + currentPlayingSongId + ', 快照=' + _nativeStateSnapshot.id);
+                                _nativeStateSnapshot = null;
+                                return;
+                            }
                             console.log('[原生切歌] 使用状态快照恢复:', _nativeStateSnapshot.name);
                             _processNativeSongChange(_nativeStateSnapshot);
                             _nativeStateSnapshot = null;
@@ -5033,6 +5107,14 @@
 
                 // 防冲突：递增_activeLoadId使所有进行中的H5 loadAndPlaySong回调失效
                 var loadId = ++_activeLoadId;
+
+                // 非恢复同步模式的切歌（用户主动通知栏切歌）：清除前台恢复保护锁
+                // 使用户操作后新封面立即生效，不受 800ms 保护窗口限制
+                if (!info.baoLiuJinDu
+                    && typeof switchAlbumImage === 'function'
+                    && typeof switchAlbumImage.clearResumeLock === 'function') {
+                    switchAlbumImage.clearResumeLock();
+                }
 
                 // 保存当前歌曲ID用于批量切歌检测（在更新currentPlayingSongId之前）
                 var previousSongId = typeof currentPlayingSongId !== 'undefined' ? currentPlayingSongId : null;
@@ -5154,7 +5236,7 @@
                     console.log('[原生切歌] 恢复同步模式，保留当前进度');
                 }
 
-                if (typeof lyricsEnabled !== 'undefined' && lyricsEnabled && typeof loadLyrics === 'function') {
+                if (shouldLoadLyrics() && typeof loadLyrics === 'function') {
                     lyricRetryCount = 0;
                     loadLyrics(info.id);
                 }
@@ -5205,7 +5287,7 @@
                 if (isPlaying) {
                     startSyncInterval();
                     clearInterval(progressUpdateInterval);
-                    progressUpdateInterval = setInterval(updateProgress, 100);
+                    progressUpdateInterval = setInterval(updateProgress, 250);
                 }
 
                 if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.gengXinBoFangSuoYin === 'function') {
@@ -5338,7 +5420,7 @@
             if (playing) {
                 startSyncInterval();
                 clearInterval(progressUpdateInterval);
-                progressUpdateInterval = setInterval(updateProgress, 100);
+                progressUpdateInterval = setInterval(updateProgress, 250);
                 syncIndicator.className = "sync-indicator";
             } else {
                 stopSyncInterval();
@@ -5458,7 +5540,7 @@
                             updatePlayButtonUI();
                             startSyncInterval();
                             clearInterval(progressUpdateInterval);
-                            progressUpdateInterval = setInterval(updateProgress, 100);
+                            progressUpdateInterval = setInterval(updateProgress, 250);
                         }
                     }
                     break;
@@ -5505,7 +5587,7 @@
                         updatePlayButtonUI();
                         startSyncInterval();
                         clearInterval(progressUpdateInterval);
-                        progressUpdateInterval = setInterval(updateProgress, 100);
+                        progressUpdateInterval = setInterval(updateProgress, 250);
                     }
                 }
                 forceSyncMediaSession();
@@ -5691,7 +5773,7 @@
                         updatePlayButtonUI();
                         startSyncInterval();
                         clearInterval(progressUpdateInterval);
-                        progressUpdateInterval = setInterval(updateProgress, 100);
+                        progressUpdateInterval = setInterval(updateProgress, 250);
                     }
                     break;
                 case 'pause':
@@ -6426,7 +6508,7 @@
                 // 使用原生播放器的 currentProgress（由 onNativeProgressChanged 回调更新）
                 if (isPlaying) {
                     clearInterval(progressUpdateInterval);
-                    progressUpdateInterval = setInterval(updateProgress, 100);
+                    progressUpdateInterval = setInterval(updateProgress, 250);
                     startSyncInterval();
                 }
 
@@ -6602,7 +6684,7 @@
                     enableButtons();
                     hideLoading提示();
                     isInitialized = true;
-                    if (lyricsEnabled) { lyricRetryCount = 0; loadLyrics(songId); }
+                    if (shouldLoadLyrics()) { lyricRetryCount = 0; loadLyrics(songId); }
                     updatePlaylistCurrentInfo();
 
                     // 触发Native音频缓存下载（异步，不影响当前播放）
@@ -6716,7 +6798,6 @@
 
         /**
          * 从API返回的data对象中提取歌曲元数据
-         * 岑鬼鬼: {id, name, artist, album, duration, pic, url, lyric}
          * 残影: {song:{name, artists, pic, album, time}, url, lrc}
          */
         function tiQuGeQuYuanShuJu(data) {
@@ -6740,7 +6821,7 @@
 
             if (data.song) {
                 console.log('[API追踪] apicx格式: song字段存在');
-                // time字段兜底：岑鬼鬼API无time字段，用duration兜底（可能是"3:45"字符串或毫秒数）
+                // time字段兜底：部分API无time字段，用duration兜底（可能是"3:45"字符串或毫秒数）
                 var songTime = data.song.time || 0;
                 if (!songTime && data.song.duration) {
                     var dur = data.song.duration;
@@ -7084,7 +7165,7 @@
                 isDragging = false;
                 const percent = Math.max(0, Math.min(1, lastDragPosition));
                 if (totalDuration === 0) {
-                    progressUpdateInterval = setInterval(updateProgress, 100);
+                    progressUpdateInterval = setInterval(updateProgress, 250);
                     return;
                 }
                 const newPositionMs = Math.floor(percent * totalDuration);
@@ -7094,7 +7175,7 @@
                 forceSyncMediaSession(newPositionMs / 1000);
                 if (lyricsEnabled) updateLyricsDisplay();
                 else lastKnownTime = currentProgress;
-                progressUpdateInterval = setInterval(updateProgress, 100);
+                progressUpdateInterval = setInterval(updateProgress, 250);
             }
         };
 
@@ -7450,7 +7531,7 @@
                 hideLoading提示();
             }
 
-            if (lyricsEnabled) { lyricRetryCount = 0; loadLyrics(songId); }
+            if (shouldLoadLyrics()) { lyricRetryCount = 0; loadLyrics(songId); }
             updatePlaylistCurrentInfo();
             renderPlaylist();
         }
@@ -7682,7 +7763,7 @@
                                     if (loadingTimeoutId) { clearTimeout(loadingTimeoutId); loadingTimeoutId = null; }
                                     enableButtons();
                                     hideLoading提示();
-                                    if (lyricsEnabled) { lyricRetryCount = 0; loadLyrics(targetSongId); }
+                                    if (shouldLoadLyrics()) { lyricRetryCount = 0; loadLyrics(targetSongId); }
                                     updateIndexAfterLoad(targetIndex, targetSongId, loadId);
                                     return;
                                 }
@@ -7821,7 +7902,7 @@
                             if (loadingTimeoutId) { clearTimeout(loadingTimeoutId); loadingTimeoutId = null; }
                             enableButtons();
                             hideLoading提示();
-                            if (lyricsEnabled) { lyricRetryCount = 0; loadLyrics(targetSongId); }
+                            if (shouldLoadLyrics()) { lyricRetryCount = 0; loadLyrics(targetSongId); }
 
                             // 触发Native音频缓存下载（异步，不影响当前播放）
                             if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.xiaZaiYinPinHuanCun === 'function') {
@@ -7893,8 +7974,13 @@
             var targetSongIdStr = String(targetSongId);
             var info = playlistData.find(function(s) { return String(s.id) === targetSongIdStr; });
             if (info) {
-                songTitle.textContent = info.name || '';
-                songArtist.textContent = info.artist || '';
+                // 关键修复：不覆盖API已设置的有效歌曲名/歌手（API路径可能已设置了正确的值）
+                if (!songTitle.textContent || songTitle.textContent === '未知歌曲') {
+                    songTitle.textContent = info.name || '';
+                }
+                if (!songArtist.textContent || songArtist.textContent === '未知歌手') {
+                    songArtist.textContent = info.artist || '';
+                }
                 // 关键修复：不覆盖已有的有效封面（API路径可能已设置了正确的封面）
                 var newPic = info.pic && info.pic.length > 10 ? info.pic : '';
                 if (newPic) {
@@ -8204,6 +8290,37 @@
         };
         // 日志导出功能已移至设置面板
 
+    </script>
+
+    <script>
+        // 初始化液体玻璃效果
+        function initLiquidGlass() {
+            try {
+                var panels = document.querySelectorAll(
+                    '.settings-panel, .search-panel, .playlist-panel, ' +
+                    '.import-panel, .cache-manager-panel, .xuanfu-settings-modal, ' +
+                    '.ding-shi-tan-chuang-nei-rong, .import-toast'
+                );
+                panels.forEach(function(panel) {
+                    if (panel.querySelector('.lg-backdrop')) return;
+                    panel.classList.add('lg-container');
+                    // 在面板最前面插入底色层和高光层
+                    panel.insertAdjacentHTML('afterbegin',
+                        '<div class="lg-backdrop"></div>' +
+                        '<div class="lg-specular"></div>'
+                    );
+                });
+            } catch(e) {
+                console.warn('[LiquidGlass] 初始化失败:', e);
+            }
+        }
+
+        // 页面加载完成后初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initLiquidGlass);
+        } else {
+            initLiquidGlass();
+        }
     </script>
 </body>
 

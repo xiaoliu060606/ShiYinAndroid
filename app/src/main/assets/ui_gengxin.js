@@ -252,19 +252,27 @@ function nativeSeekTo(position) {
 
 // ==================== 原生端通知 ====================
 
-// 通知原生端歌曲信息变化
+// 通知原生端歌曲信息变化（带防抖，避免切歌时重复调用）
+var _notifyNativeDebounceTimer = null;
 function notifyNativeSongInfo() {
-    if (window.AndroidBridge && typeof window.AndroidBridge.onSongInfoChanged === 'function') {
-        var songInfo = {
-            id: currentPlayingSongId || "",
-            title: songTitle.textContent || "",
-            artist: songArtist.textContent || "",
-            cover: currentCoverImage || "",
-            duration: totalDuration
-        };
-        window.AndroidBridge.onSongInfoChanged(JSON.stringify(songInfo));
-        console.log("[ShiYinSync] [歌曲信息] H5→Native:", songInfo.title, "-", songInfo.artist);
+    if (_notifyNativeDebounceTimer) {
+        clearTimeout(_notifyNativeDebounceTimer);
+        _notifyNativeDebounceTimer = null;
     }
+    _notifyNativeDebounceTimer = setTimeout(function() {
+        _notifyNativeDebounceTimer = null;
+        if (window.AndroidBridge && typeof window.AndroidBridge.onSongInfoChanged === 'function') {
+            var songInfo = {
+                id: currentPlayingSongId || "",
+                title: songTitle.textContent || "",
+                artist: songArtist.textContent || "",
+                cover: currentCoverImage || "",
+                duration: totalDuration
+            };
+            window.AndroidBridge.onSongInfoChanged(JSON.stringify(songInfo));
+            console.log("[ShiYinSync] [歌曲信息] H5→Native:", songInfo.title, "-", songInfo.artist);
+        }
+    }, 50);
 }
 
 // 更新系统通知栏状态
@@ -487,10 +495,29 @@ function getAvailableCachedSongs() {
                     if (data) {
                         var cache = JSON.parse(data);
                         if (Date.now() - cache.timestamp < CACHE_CONFIG.SONG_CACHE_DURATION) {
+                            var songId = key.replace(CACHE_CONFIG.SONG_CACHE_PREFIX, '');
+                            var songName = cache.name || '';
+                            var songArtist = cache.artist || '';
+
+                            // 如果缓存中名字/歌手为空，尝试从播放列表中查找
+                            if ((!songName || !songArtist) && typeof playlistData !== 'undefined') {
+                                for (var _j = 0; _j < playlistData.length; _j++) {
+                                    var ps = playlistData[_j];
+                                    // 匹配原始ID或带前缀的QQ ID
+                                    var psId = String(ps.id);
+                                    var cacheId = String(songId);
+                                    if (psId === cacheId || psId === cacheId.replace(/^(qq_|wy_)/, '')) {
+                                        if (!songName) songName = ps.name || '';
+                                        if (!songArtist) songArtist = ps.artist || '';
+                                        break;
+                                    }
+                                }
+                            }
+
                             cachedSongs.push({
-                                id: key.replace(CACHE_CONFIG.SONG_CACHE_PREFIX, ''),
-                                name: cache.name || '未知歌曲',
-                                artist: cache.artist || '未知歌手'
+                                id: songId,
+                                name: songName || '未知歌曲',
+                                artist: songArtist || '未知歌手'
                             });
                         }
                     }

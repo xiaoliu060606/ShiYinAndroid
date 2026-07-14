@@ -10,9 +10,5 @@
   "yunzhi_api": {
     "url": "https://your-api-domain.com/API/endpoint",
     "token": "YOUR_TOKEN_HERE"
-  },
-  "cenguigui_cn_api": {
-    "url": "https://your-api-domain.com/api/music",
-    "token": ""
   }
 }

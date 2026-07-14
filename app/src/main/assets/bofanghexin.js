@@ -14,6 +14,12 @@ var lastKnownTime = 0;
 
 // 歌词相关变量
 var lyricsEnabled = false;
+// 悬浮窗歌词独立开关：即使应用内歌词开关关闭，加载歌词给悬浮窗使用
+var xuanFuGeCiYiKaiQi = false;
+function shouldLoadLyrics() {
+    return (typeof lyricsEnabled !== 'undefined' && lyricsEnabled) 
+        || (typeof xuanFuGeCiYiKaiQi !== 'undefined' && xuanFuGeCiYiKaiQi);
+}
 var lyrics = [];
 var currentLyricIndex = -1;
 var loadedLyricSongId = null;

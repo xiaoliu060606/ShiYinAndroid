@@ -8,6 +8,11 @@ var searchResults = [];
 var searchCancelToken = null;
 var lastSearchKeyword = '';
 var searchDebounceTimer = null;
+var currentSearchTab = 'wy'; // 'wy' = 网易云, 'qq' = QQ音乐
+
+// QQ音乐搜索结果缓存（独立于网易云）
+var qqSearchResults = [];
+var qqSearchKeyword = '';
 
 // 搜索历史常量
 var SOU_SUO_LI_SHI_KEY = 'shiyin_search_history';
@@ -21,10 +26,14 @@ var SOU_SUO_LI_SHI_MAX = 15;
  * @returns {string} 规范化后的URL
  */
 function guiFanHuaFengMianUrl(url) {
-    if (!url || typeof url !== 'string') return url || '';
+    if (!url || typeof url !== 'string') return '';
     // 0. 升级 HTTP 到 HTTPS，绕过 CSP img-src 限制
     if (url.indexOf('http://') === 0) {
         url = 'https://' + url.substring(7);
+    }
+    // 0.5 协议相对URL（//example.com/path）升级为 HTTPS
+    if (url.indexOf('//') === 0) {
+        url = 'https:' + url;
     }
     // 1. 去除 https:// 之后路径中的双斜杠（保留协议部分的 ://
     var idx = url.indexOf('://');
@@ -54,6 +63,21 @@ async function loadPlaylistFromDefault() {
             if (playlistJson) {
                 var data = JSON.parse(playlistJson);
                 playlistJsonData = data;
+
+                // 从 localStorage 恢复 source 字段（原生层不存储 source，QQ音乐标识会丢失）
+                var localSourceMap = {};
+                try {
+                    var localJson = localStorage.getItem('playlistJson');
+                    if (localJson) {
+                        var localData = JSON.parse(localJson);
+                        if (localData.songs && Array.isArray(localData.songs)) {
+                            localData.songs.forEach(function(s) {
+                                localSourceMap[String(s.id)] = s.source || 'wy';
+                            });
+                        }
+                    }
+                } catch(e) { /* ignore */ }
+
                 songIds = data.songs.map(function(song) { return song.id; });
                 playlistData = data.songs.map(function(song, index) {
                     return {
@@ -62,6 +86,7 @@ async function loadPlaylistFromDefault() {
                         name: song.name || '未知歌曲',
                         artist: song.artist || '未知歌手',
                         pic: guiFanHuaFengMianUrl(song.pic || defaultCover),
+                        source: localSourceMap[String(song.id)] || song.source || 'wy',
                         picTimestamp: song.picTimestamp || Date.now()
                     };
                 });
@@ -76,6 +101,12 @@ async function loadPlaylistFromDefault() {
                         console.warn('同步播放列表详情到原生层失败:', e);
                     }
                 }
+
+                // 初始化 localStorage 缓存（首次启动后立即可用，供 source 字段恢复）
+                try {
+                    localStorage.setItem('playlistJson', JSON.stringify(data));
+                } catch(e) { /* ignore */ }
+
                 return data.songs;
             }
             console.warn('Android Bridge 返回空播放列表，尝试从默认文件加载');
@@ -104,6 +135,7 @@ async function loadPlaylistFromDefault() {
                     name: song.name || '未知歌曲',
                     artist: song.artist || '未知歌手',
                     pic: song.pic || defaultCover,
+                    source: song.source || 'wy',
                     picTimestamp: song.picTimestamp || Date.now()
                 };
             });
@@ -129,6 +161,7 @@ async function savePlaylistToJSON() {
                 name: song ? song.name : '',
                 artist: song ? song.artist : '',
                 pic: song ? guiFanHuaFengMianUrl(song.pic) : defaultCover,
+                source: song ? (song.source || 'wy') : 'wy',
                 picTimestamp: song ? song.picTimestamp || Date.now() : Date.now()
             };
         });
@@ -197,8 +230,7 @@ function initPlaylist() {
         clearLogItem.addEventListener('click', handleClearLog);
     }
 
-    // 初始化音源设置
-    initYinYuanSettings();
+
 }
 
 // 加载播放列表数据
@@ -247,6 +279,7 @@ async function loadPlaylistFromAPI() {
                         name: parsedData.name || '未知歌曲',
                         artist: parsedData.artist || '未知歌手',
                         pic: guiFanHuaFengMianUrl(parsedData.pic || defaultCover),
+                        source: 'wy',
                         picTimestamp: Date.now()
                     };
                 }
@@ -295,7 +328,8 @@ async function loadMissingSongs(missingIds) {
                         index: index,
                         name: parsedData.name || '未知歌曲',
                         artist: parsedData.artist || '未知歌手',
-                        pic: guiFanHuaFengMianUrl(parsedData.pic || defaultCover)
+                        pic: guiFanHuaFengMianUrl(parsedData.pic || defaultCover),
+                        source: 'wy'
                     };
                     addSongToPlaylistCache(songInfo);
                     return songInfo;
@@ -336,6 +370,7 @@ function renderPlaylist() {
         var isActive = String(song.id) === String(currentSongId);
         var isCurrentPlaying = song.id === currentPlayingSongId;
         var isNoCopyright = typeof isSongNoCopyright === 'function' ? isSongNoCopyright(song.id) : false;
+        var source = song.source || 'wy';
 
         var numberOrDelete = isDeleteMode
             ? '<div class="playlist-item-delete" data-index="' + song.index + '" title="删除"><i class="fa-solid fa-trash"></i></div>'
@@ -345,6 +380,7 @@ function renderPlaylist() {
 
         return '<div class="playlist-item ' + (isActive ? 'active' : '') + ' ' + (isDeleteMode ? 'delete-mode' : '') + ' ' + (isNoCopyright ? 'no-copyright-item' : '') + '" data-index="' + song.index + '" data-id="' + song.id + '">' +
             numberOrDelete +
+            '<span class="playlist-item-source ' + source + '">' + (source === 'qq' ? 'QQ' : 'WY') + '</span>' +
             '<div class="playlist-item-info ' + (isNoCopyright ? 'no-copyright-text' : '') + '">' +
             '<div class="playlist-item-title">' + (typeof escapeHtml === 'function' ? escapeHtml(song.name) : song.name) + '</div>' +
             '<div class="playlist-item-artist">' + (typeof escapeHtml === 'function' ? escapeHtml(song.artist) : song.artist) + '</div>' +
@@ -464,6 +500,7 @@ async function addToPlaylist(index) {
         name: song.name,
         artist: artistNames,
         pic: songPic,
+        source: 'wy',
         picTimestamp: Date.now()
     };
 
@@ -496,7 +533,8 @@ async function addToPlaylist(index) {
         id: String(song.id),
         name: songInfo.name,
         artist: songInfo.artist,
-        pic: songInfo.pic
+        pic: songInfo.pic,
+        source: songInfo.source || 'wy'
     };
 
     if (typeof window.addSongToAndroid === 'function') {
@@ -800,11 +838,17 @@ function playSongFromPlaylist(index) {
 function showConfirmDialog(title, message, onConfirm, onCancel) {
     var overlay = document.createElement('div');
     overlay.className = 'confirm-dialog-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;z-index:3000;opacity:0;visibility:hidden;transition:all 0.3s ease;';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:3000;opacity:0;visibility:hidden;transition:all 0.35s ease;';
 
     var dialog = document.createElement('div');
     dialog.className = 'confirm-dialog';
-    dialog.style.cssText = 'background:rgba(30,30,40,0.95);backdrop-filter:blur(20px);border-radius:20px;border:1px solid rgba(255,255,255,0.15);box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:24px;min-width:300px;max-width:400px;transform:scale(0.9);transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);';
+    dialog.style.cssText = 'position:relative;background:rgba(255,255,255,0.10);border-radius:20px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 32px 80px rgba(0,0,0,0.8);padding:24px;min-width:300px;max-width:400px;transform:scale(0.9);transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);';
+    // 添加液体玻璃图层
+    dialog.classList.add('lg-container');
+    dialog.insertAdjacentHTML('afterbegin',
+        '<div class="lg-backdrop"></div>' +
+        '<div class="lg-specular"></div>'
+    );
 
     var titleEl = document.createElement('div');
     titleEl.className = 'confirm-dialog-title';
@@ -959,6 +1003,7 @@ function tianJiaSouSuoLiShi(guanJianCi) {
 
 // 渲染搜索历史
 function xuanRanSouSuoLiShi() {
+    searchContent.classList.remove('has-results');
     var liShi = duQuSouSuoLiShi();
     if (liShi.length === 0) {
         searchContent.innerHTML = '<div class="search-placeholder">输入关键词搜索歌曲</div>';
@@ -1019,7 +1064,11 @@ async function performSearch(keyword) {
 
     searchDebounceTimer = setTimeout(function() {
         searchDebounceTimer = null;
-        executeSearch(keyword);
+        if (currentSearchTab === 'qq') {
+            executeQqSearch(keyword);
+        } else {
+            executeSearch(keyword);
+        }
     }, 300);
 }
 
@@ -1051,6 +1100,123 @@ function normalizeApicxSearchResponse(rawData) {
         };
     });
     return { code: 200, result: { songs: songs } };
+}
+
+/** QQ音乐搜索结果标准化 */
+function normalizeQqmusicSearchResponse(rawData) {
+    if (!rawData || rawData.code !== 200 || !rawData.data || !Array.isArray(rawData.data.songs)) {
+        return [];
+    }
+    return rawData.data.songs.map(function(song) {
+        return {
+            id: song.song_id || '',
+            name: song.name || '',
+            artist: song.artist || '',
+            album: song.album || '',
+            pic: (song.cover || '').replace('http://', 'https://'),
+            duration: song.duration || 0,
+            source: 'qq',
+            qqIndex: song.index || 1
+        };
+    });
+}
+
+/** QQ音乐搜索 */
+async function executeQqSearch(keyword) {
+    // 关键词未变且有结果缓存，直接渲染缓存
+    if (keyword === qqSearchKeyword && qqSearchResults.length > 0) {
+        console.log('[QQ搜索] 关键词相同且有缓存结果，跳过重复搜索');
+        renderQqSearchResults(qqSearchResults);
+        return;
+    }
+    console.log('[QQ搜索] ===== 开始QQ音乐搜索 =====');
+    console.log('[QQ搜索] 关键词: "' + keyword + '"');
+    qqSearchKeyword = keyword;
+
+    searchContent.innerHTML = '<div class="search-loading"><i class="fa-solid fa-spinner fa-spin"></i> QQ音乐搜索中...</div>';
+
+    try {
+        var qqmusicUrl = window.__QQMUSIC_API_URL__;
+        var qqmusicToken = window.__QQMUSIC_API_TOKEN__;
+        if (!qqmusicUrl || !qqmusicToken) {
+            console.error('[QQ搜索] QQ音乐API未配置');
+            // 降级：尝试通过原生桥接
+            if (window.AndroidBridge && typeof window.AndroidBridge.nativeSearchQqmusicAsync === 'function') {
+                var result = await new Promise(function(resolve, reject) {
+                    var cb = '_qqSearchCallback_' + Date.now();
+                    window[cb] = function(json) {
+                        try { resolve(JSON.parse(json)); } catch(e) { reject(e); }
+                        delete window[cb];
+                    };
+                    window.AndroidBridge.nativeSearchQqmusicAsync(keyword, cb);
+                });
+                qqSearchResults = normalizeQqmusicSearchResponse(result);
+            } else {
+                searchContent.innerHTML = '<div class="search-no-result">QQ音乐API未配置</div>';
+                return;
+            }
+        } else {
+            var response = await axios.get(qqmusicUrl + '?msg=' + encodeURIComponent(keyword) + '&token=' + encodeURIComponent(qqmusicToken), { timeout: 10000 });
+            qqSearchResults = normalizeQqmusicSearchResponse(response.data);
+        }
+
+        if (qqSearchResults.length > 0) {
+            console.log('[QQ搜索] 搜索结果: 找到 ' + qqSearchResults.length + ' 首歌曲');
+            tianJiaSouSuoLiShi(keyword);
+            renderQqSearchResults(qqSearchResults);
+        } else {
+            tianJiaSouSuoLiShi(keyword);
+            searchContent.innerHTML = '<div class="search-no-result">QQ音乐未找到相关歌曲</div>';
+        }
+    } catch (error) {
+        console.error('[QQ搜索] 搜索失败:', error.message);
+        searchContent.innerHTML = '<div class="search-no-result">QQ音乐搜索失败，请重试</div>';
+    }
+}
+
+/** 渲染QQ音乐搜索结果 */
+function renderQqSearchResults(songs) {
+    if (songs.length === 0) {
+        searchContent.innerHTML = '<div class="search-no-result">未找到相关歌曲</div>';
+        return;
+    }
+
+    var html = '<div class="search-results">';
+    for (var i = 0; i < songs.length; i++) {
+        var song = songs[i];
+        var coverStyle = song.pic ? 'background-image: url(' + song.pic + ')' : '';
+        var artistName = song.artist || '未知歌手';
+        var isInPlaylist = songIds.indexOf(String(song.id)) >= 0;
+        html += '<div class="search-result-item" data-index="' + i + '" data-source="qq">' +
+            '<div class="search-result-cover" style="' + coverStyle + '"></div>' +
+            '<div class="search-result-info">' +
+            '<div class="search-result-name">' + (typeof escapeHtml === 'function' ? escapeHtml(song.name) : song.name) + '</div>' +
+            '<div class="search-result-artist">' + (typeof escapeHtml === 'function' ? escapeHtml(artistName) : artistName) + '</div>' +
+            '</div>' +
+            '<div class="search-result-add' + (isInPlaylist ? ' added' : '') + '" data-index="' + i + '" data-source="qq" title="' + (isInPlaylist ? '已添加' : '添加到播放列表') + '">' + (isInPlaylist ? '✓' : '+') + '</div>' +
+            '</div>';
+    }
+    html += '</div>';
+    searchContent.innerHTML = html;
+    searchContent.classList.add('has-results');
+
+    // 绑定点击播放事件
+    searchContent.querySelectorAll('.search-result-item').forEach(function(item) {
+        EventListenerManager.add(item, 'click', function(e) {
+            if (e.target.closest('.search-result-add')) return;
+            var index = parseInt(item.dataset.index, 10);
+            playQqSearchResult(index);
+        });
+    });
+
+    // 绑定添加按钮事件
+    searchContent.querySelectorAll('.search-result-add').forEach(function(btn) {
+        EventListenerManager.add(btn, 'click', function(e) {
+            e.stopPropagation();
+            var index = parseInt(btn.dataset.index, 10);
+            addQqSearchResultToPlaylist(index);
+        });
+    });
 }
 
 async function executeSearch(keyword) {
@@ -1103,6 +1269,192 @@ async function executeSearch(keyword) {
     }
 }
 
+/** 播放QQ音乐搜索结果 */
+async function playQqSearchResult(index) {
+    var song = qqSearchResults[index];
+    if (!song) return;
+
+    closeSearchPanel();
+
+    if (typeof cancelPendingRequest === 'function') cancelPendingRequest();
+    if (typeof clearRetryTimeout === 'function') clearRetryTimeout();
+    if (typeof cancelLyricRequest === 'function') cancelLyricRequest();
+    if (typeof clearLyricRetryTimeout === 'function') clearLyricRetryTimeout();
+    lyricRetryCount = 0;
+
+    if (typeof showLoading提示 === 'function') showLoading提示("获取QQ音乐...", 1);
+
+    try {
+        var qqmusicUrl = window.__QQMUSIC_API_URL__;
+        var qqmusicToken = window.__QQMUSIC_API_TOKEN__;
+        if (!qqmusicUrl || !qqmusicToken) {
+            console.error('[QQ播放] QQ音乐API未配置');
+            showToast('QQ音乐API未配置', 'error', 3000);
+            if (typeof hideLoading提示 === 'function') hideLoading提示();
+            return;
+        }
+
+        // 获取QQ音乐详情（含播放地址）
+        // 传 song.id 确保精确匹配（多个歌手同歌名时，name+index 会匹配错误）
+        var qqApiUrl = qqmusicUrl + '?msg=' + encodeURIComponent(song.name) + '&n=' + song.qqIndex + '&token=' + encodeURIComponent(qqmusicToken);
+        if (song.id) { qqApiUrl += '&id=' + encodeURIComponent(String(song.id)); }
+        var response = await axios.get(qqApiUrl, { timeout: 10000 });
+
+        if (response.data && response.data.code === 200 && response.data.data) {
+            var detail = response.data.data;
+            var playUrl = detail.play_url || '';
+            if (!playUrl) {
+                showToast('该歌曲暂时无法播放', 'warning', 2500);
+                if (typeof hideLoading提示 === 'function') hideLoading提示();
+                return;
+            }
+
+            // 更新UI
+            currentCoverImage = (detail.cover || song.pic || '').replace('http://', 'https://') || defaultCover;
+            songTitle.textContent = detail.name || song.name;
+            songArtist.textContent = detail.artist || song.artist || '未知歌手';
+
+            // duration from detail is like "04:29"
+            if (detail.duration && detail.duration.includes(':')) {
+                var parts = detail.duration.split(':');
+                totalDuration = (parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10)) * 1000;
+                totalTimeDisplay.textContent = detail.duration;
+            }
+
+            if (isInitialized) {
+                if (typeof switchAlbumImage === 'function') switchAlbumImage(currentCoverImage);
+            } else {
+                if (typeof setCoverImagesDirect === 'function') setCoverImagesDirect(currentCoverImage);
+            }
+
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: songTitle.textContent,
+                    artist: songArtist.textContent,
+                    album: '',
+                    artwork: [{ src: currentCoverImage, sizes: '96x96', type: 'image/jpeg' },
+                             { src: currentCoverImage, sizes: '256x256', type: 'image/jpeg' }]
+                });
+            }
+
+            currentPlayingSongId = song.id;
+            currentSearchSong = { id: song.id, name: song.name, artist: song.artist || '', source: 'qq' };
+
+            if (typeof notifyNativeSongInfo === 'function') notifyNativeSongInfo();
+
+            // 使用原生播放器播放
+            if (USE_NATIVE_PLAYER && window.AndroidBridge && typeof window.AndroidBridge.nativeLoadAndPlay === 'function') {
+                if (typeof player !== 'undefined') { player.pause(); player.src = ''; }
+                var result = typeof nativeLoadAndPlay === 'function' ? nativeLoadAndPlay(playUrl, 0) : false;
+                if (result) {
+                    if (lyricsEnabled && typeof loadLyrics === 'function') {
+                        lyricRetryCount = 0;
+                        // QQ音乐自带歌词，直接使用
+                        if (detail.lyrics && detail.lyrics.formatted) {
+                            // 使用标准解析路径（parseLyrics 将时间转为毫秒，与 updateLyricsDisplay 一致）
+                            if (typeof parseLyrics === 'function') {
+                                parseLyrics(detail.lyrics.formatted, '');
+                            } else {
+                                var lrcData = typeof parseLrcContent === 'function' ? parseLrcContent(detail.lyrics.formatted) : [];
+                                if (lrcData && lrcData.length > 0) {
+                                    lyrics = lrcData.map(function(l) {
+                                        return { time: l.time * 1000, text: l.text, trans: '' };
+                                    });
+                                    updateLyricsDisplay(true);
+                                    if (typeof sendLyricData === 'function') sendLyricData(lyrics);
+                                }
+                            }
+                            loadedLyricSongId = song.id;
+                        } else {
+                            loadLyrics(song.id);
+                        }
+                    }
+                    // 启动H5进度同步定时器（确保歌词滚动/进度条更新）
+                    if (typeof startSyncInterval === 'function') startSyncInterval();
+                } else {
+                    console.warn("原生播放器播放失败，回退到Web Audio");
+                    if (typeof playWithWebAudio === 'function') {
+                        playWithWebAudio(playUrl, song.id);
+                    } else {
+                        showToast('播放失败', 'error', 2000);
+                    }
+                }
+            }
+
+            // 缓存歌曲信息
+            if (typeof saveSongCacheToStorage === 'function') {
+                saveSongCacheToStorage('qq_' + song.id, {
+                    source: 'qq',
+                    url: playUrl,
+                    name: songTitle.textContent,
+                    artist: songArtist.textContent,
+                    pic: currentCoverImage,
+                    duration: detail.duration || '',
+                    album: detail.album || ''
+                });
+            }
+
+            if (typeof hideLoading提示 === 'function') hideLoading提示();
+        } else {
+            throw new Error('获取QQ音乐详情失败');
+        }
+    } catch (error) {
+        console.error('[QQ播放] 失败:', error.message);
+        if (typeof hideLoading提示 === 'function') hideLoading提示();
+        showToast('QQ音乐播放失败', 'error', 2500);
+    }
+}
+
+/** 将QQ音乐搜索结果添加到播放列表 */
+function addQqSearchResultToPlaylist(index) {
+    var song = qqSearchResults[index];
+    if (!song) return;
+
+    // 检查是否已在播放列表中
+    if (songIds.indexOf(String(song.id)) >= 0) {
+        showToast('该歌曲已在播放列表中', 'info', 2000);
+        return;
+    }
+
+    var songPic = guiFanHuaFengMianUrl(song.pic || defaultCover);
+
+    songIds.push(song.id);
+
+    var songInfo = {
+        id: song.id,
+        index: songIds.length - 1,
+        name: song.name,
+        artist: song.artist || '未知歌手',
+        pic: songPic,
+        source: 'qq',
+        qqIndex: song.qqIndex,
+        picTimestamp: Date.now()
+    };
+
+    playlistData.push(songInfo);
+    playlistData.sort(function(a, b) { return a.index - b.index; });
+
+    addSongToPlaylistCache(songInfo);
+    // 重新渲染以更新按钮状态（已添加的歌曲显示 ✓）
+    renderQqSearchResults(qqSearchResults);
+    renderPlaylist();
+
+    // 同步播放列表到原生
+    if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.gengXinBoFangLieBiaoXiangQing === 'function') {
+        try {
+            var songsForNative = playlistData.map(function(s) {
+                return { id: String(s.id), name: s.name || '', artist: s.artist || '', pic: guiFanHuaFengMianUrl(s.pic || defaultCover), source: s.source || 'wy' };
+            });
+            AndroidBridge.gengXinBoFangLieBiaoXiangQing(JSON.stringify(songsForNative));
+        } catch(e) {}
+    }
+
+    // 显示添加成功提示
+    if (typeof showToast === 'function') {
+        showToast('已添加 "' + song.name + '" 到播放列表', 'success', 2000);
+    }
+}
+
 // 渲染搜索结果
 function renderSearchResults(songs) {
     if (songs.length === 0) {
@@ -1123,6 +1475,7 @@ function renderSearchResults(songs) {
             '<i class="fa-solid ' + (isInPlaylist ? 'fa-check' : 'fa-plus') + '"></i>' +
             '</div></div>';
     }).join('');
+    searchContent.classList.add('has-results');
 
     searchContent.querySelectorAll('.search-result-item').forEach(function(item) {
         EventListenerManager.add(item, 'click', function(e) {
@@ -1339,6 +1692,7 @@ async function playSearchResult(index) {
                             AndroidBridge.xiaZaiYinPinHuanCun(String(song.id), songData.name || '');
                         } catch(e) {}
                     }
+                    if (typeof startSyncInterval === 'function') startSyncInterval();
                 } else {
                     console.warn("原生播放器播放失败，回退到Web Audio");
                     playWithWebAudio(songData.url, song.id);
@@ -1481,6 +1835,7 @@ function playSearchResultWithCache(song, cachedData) {
                     AndroidBridge.xiaZaiYinPinHuanCun(String(song.id), cachedData.name || '');
                 } catch(e) {}
             }
+            if (typeof startSyncInterval === 'function') startSyncInterval();
         } else {
             console.warn("原生播放器缓存播放失败，删除缓存并从API重新加载");
             localStorage.removeItem(CACHE_CONFIG.SONG_CACHE_PREFIX + song.id);
@@ -1781,7 +2136,8 @@ async function importSingleSong(song) {
             index: songIds.length - 1,
             name: songData.name || matchedSong.name,
             artist: songData.artist || matchedSong.artists.map(function(a) { return a.name; }).join(' / '),
-            pic: guiFanHuaFengMianUrl(songData.pic || defaultCover)
+            pic: guiFanHuaFengMianUrl(songData.pic || defaultCover),
+            source: 'wy'
         };
 
         playlistData.push(songInfo);
@@ -2040,10 +2396,27 @@ function loadUrlCacheList() {
                 var songId = key.replace('netease_song_cache_', '');
                 var size = new Blob([localStorage.getItem(key)]).size;
                 totalSize += size;
+
+                var songName = data.name || '';
+                var songArtist = data.artist || '';
+
+                // 如果缓存中名字/歌手为空，尝试从播放列表中查找
+                if ((!songName || !songArtist) && typeof playlistData !== 'undefined') {
+                    for (var _j = 0; _j < playlistData.length; _j++) {
+                        var ps = playlistData[_j];
+                        var psId = String(ps.id);
+                        if (psId === songId || psId === songId.replace(/^(qq_|wy_)/, '')) {
+                            if (!songName) songName = ps.name || '';
+                            if (!songArtist) songArtist = ps.artist || '';
+                            break;
+                        }
+                    }
+                }
+
                 cacheItems.push({
                     id: songId,
-                    name: data.name || '未知歌曲',
-                    artist: data.artist || '未知歌手',
+                    name: songName || '未知歌曲',
+                    artist: songArtist || '未知歌手',
                     size: size
                 });
             } catch (e) {
@@ -2163,96 +2536,6 @@ function clearAllCache() {
     loadCacheList(currentCacheType);
 }
 
-// ==================== 音源设置 ====================
-
-// 初始化音源设置
-function initYinYuanSettings() {
-    try {
-        if (typeof AndroidBridge !== 'undefined' && AndroidBridge.huoQuYinYuanPeiZhi) {
-            var dangQianYinYuan = AndroidBridge.huoQuYinYuanPeiZhi();
-            console.log('[音源设置] 当前音源:', dangQianYinYuan);
-            updateYinYuanUI(dangQianYinYuan);
-        }
-    } catch (e) {
-        console.error('[音源设置] 初始化失败:', e);
-    }
-
-    if (typeof yinYuanAuto !== 'undefined' && yinYuanAuto) {
-        yinYuanAuto.addEventListener('click', function() { 切换YinYuan('auto'); });
-    }
-    if (typeof yinYuanCenguigui !== 'undefined' && yinYuanCenguigui) {
-        yinYuanCenguigui.addEventListener('click', function() { 切换YinYuan('yunzhi'); });
-    }
-    if (typeof yinYuanCenguiguiCn !== 'undefined' && yinYuanCenguiguiCn) {
-        yinYuanCenguiguiCn.addEventListener('click', function() {
-            // 岑鬼鬼API服务端已于2026-05-08关停，拦截选择
-            showToast('岑鬼鬼API已停用（服务端关停），请选择其他音源', 'warning', 3000);
-            console.warn('[音源设置] 岑鬼鬼API已停用，拒绝切换');
-        });
-    }
-    if (typeof yinYuanApicx !== 'undefined' && yinYuanApicx) {
-        yinYuanApicx.addEventListener('click', function() { 切换YinYuan('apicx'); });
-    }
-}
-
-// 切换音源
-function 切换YinYuan(yinYuan) {
-    try {
-        if (typeof AndroidBridge !== 'undefined' && AndroidBridge.sheZhiYinYuanPeiZhi) {
-            AndroidBridge.sheZhiYinYuanPeiZhi(yinYuan);
-            updateYinYuanUI(yinYuan);
-            // 同步H5端API索引，保持双端一致
-            if (yinYuan === 'apicx') {
-                currentApiIndex = 1;
-                localStorage.setItem(API_MODE_KEY, 'apicx');
-            } else if (yinYuan === 'yunzhi' || yinYuan === 'cenguigui_cn') {
-                currentApiIndex = 0;
-                localStorage.setItem(API_MODE_KEY, yinYuan);
-            } else {
-                // auto模式默认使用yunzhi
-                currentApiIndex = 0;
-                localStorage.setItem(API_MODE_KEY, 'yunzhi');
-            }
-            console.log('[音源设置] 切换到:', yinYuan, 'H5 API索引:', currentApiIndex);
-            showToast('已切换到' + getYinYuanMingCheng(yinYuan), 'success', 2000);
-        }
-    } catch (e) {
-        console.error('[音源设置] 切换失败:', e);
-        showToast('切换失败', 'error', 2000);
-    }
-}
-
-// 更新音源UI显示
-function updateYinYuanUI(yinYuan) {
-    [yinYuanAuto, yinYuanCenguigui, yinYuanCenguiguiCn, yinYuanApicx].forEach(function(el) {
-        if (el) el.classList.remove('xuan-zhong');
-    });
-
-    var mapping = {
-        'auto': typeof yinYuanAuto !== 'undefined' ? yinYuanAuto : null,
-        'cenguigui': typeof yinYuanCenguigui !== 'undefined' ? yinYuanCenguigui : null,
-        'yunzhi': typeof yinYuanCenguigui !== 'undefined' ? yinYuanCenguigui : null,
-        'cenguigui_cn': typeof yinYuanCenguiguiCn !== 'undefined' ? yinYuanCenguiguiCn : null,
-        'apicx': typeof yinYuanApicx !== 'undefined' ? yinYuanApicx : null
-    };
-    var targetEl = mapping[yinYuan];
-    if (targetEl) {
-        targetEl.classList.add('xuan-zhong');
-    }
-}
-
-// 获取音源名称
-function getYinYuanMingCheng(yinYuan) {
-    var names = {
-        'auto': '自动切换',
-        'cenguigui': '云智API',
-        'yunzhi': '云智API',
-        'cenguigui_cn': '岑鬼鬼',
-        'apicx': '残影API'
-    };
-    return names[yinYuan] || yinYuan;
-}
-
 // ==================== 悬浮窗歌词设置 ====================
 
 // 初始化悬浮窗歌词设置
@@ -2261,7 +2544,6 @@ function initXuanFuGeCiSettings() {
     var xuanFuSwitchItem = document.getElementById('xuanFuSwitchItem');
     var xuanFuToggle = document.getElementById('xuanFuToggle');
     var xuanFuSettingsModal = document.getElementById('xuanFuSettingsModal');
-    var xuanFuSettingsBack = document.getElementById('xuanFuSettingsBack');
     var xuanFuSettingsOverlay = document.getElementById('xuanFuSettingsOverlay');
     var xuanFuPermissionBtn = document.getElementById('xuanFuPermissionBtn');
     var xuanFuPermissionSection = document.getElementById('xuanFuPermissionSection');
@@ -2310,11 +2592,6 @@ function initXuanFuGeCiSettings() {
         xuanFuKaiGuanItem.addEventListener('click', openModal);
     }
 
-    // 返回按钮关闭弹窗
-    if (xuanFuSettingsBack) {
-        xuanFuSettingsBack.addEventListener('click', closeModal);
-    }
-
     // 点击遮罩层关闭弹窗
     if (xuanFuSettingsOverlay) {
         xuanFuSettingsOverlay.addEventListener('click', closeModal);
@@ -2347,12 +2624,14 @@ function initXuanFuGeCiSettings() {
                     try { AndroidBridge.guanBiXuanFuGeCi(); } catch(e) {}
                 }
                 xuanFuToggle.classList.remove('active');
+                window.xuanFuGeCiYiKaiQi = false;
             } else {
                 if (hasPermission()) {
                     if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.kaiQiXuanFuGeCi === 'function') {
                         try { AndroidBridge.kaiQiXuanFuGeCi(); } catch(e) {}
                     }
                     xuanFuToggle.classList.add('active');
+                    window.xuanFuGeCiYiKaiQi = true;
                 } else {
                     if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.qingQiuXuanFuQuanXian === 'function') {
                         try { AndroidBridge.qingQiuXuanFuQuanXian(); } catch(e) {}
@@ -2480,3 +2759,41 @@ window.onXuanFuQuanXianJieGuo = function(success) {
 
 // 初始化悬浮窗设置
 setTimeout(initXuanFuGeCiSettings, 500);
+
+// ==================== 搜索Tab切换 ====================
+
+// 搜索Tab点击切换
+(function() {
+    var tabs = document.querySelectorAll('.search-tab');
+    if (tabs.length > 0) {
+        tabs.forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                var source = this.dataset.source;
+                if (source === currentSearchTab) return;
+                
+                // 切换Tab样式
+                document.querySelectorAll('.search-tab').forEach(function(t) { t.classList.remove('active'); });
+                this.classList.add('active');
+                
+                currentSearchTab = source;
+                searchInput.value = '';
+                
+                // 切换到对应Tab时优先显示缓存结果
+                if (source === 'qq' && qqSearchResults.length > 0) {
+                    renderQqSearchResults(qqSearchResults);
+                    searchInput.placeholder = '搜索QQ音乐歌曲...';
+                } else if (source === 'wy' && searchResults.length > 0) {
+                    renderSearchResults(searchResults);
+                    searchInput.placeholder = '搜索歌曲、歌手...';
+                } else {
+                    if (source === 'qq') {
+                        searchInput.placeholder = '搜索QQ音乐歌曲...';
+                    } else {
+                        searchInput.placeholder = '搜索歌曲、歌手...';
+                    }
+                    xianShiSouSuoLiShiHuoZhanWei();
+                }
+            });
+        });
+    }
+})();

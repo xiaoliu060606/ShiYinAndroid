@@ -4,19 +4,15 @@ import android.content.Context
 
 /**
  * 音源配置管理
- * 支持切换: yunzhi(主API-云智), apicx(副API-残影), auto(自动降级)
+ * 支持切换: yunzhi(云智-网易云), qqmusic(QQ音乐), auto(自动降级)
  */
 class YinYuanPeiZhi(context: Context) {
 
     companion object {
         const val YIN_YUAN_YUNZHI = "yunzhi"
         const val YIN_YUAN_APICX = "apicx"
+        const val YIN_YUAN_QQMUSIC = "qqmusic"
         const val YIN_YUAN_ZI_DONG = "auto"
-        const val YIN_YUAN_CENGGUI_CN = "cenguigui_cn"
-
-        // 兼容旧版存储值
-        @Deprecated("使用YIN_YUAN_YUNZHI")
-        const val YIN_YUAN_CENGGUI = "cenguigui"
 
         private const val PREF_NAME = "yin_yuan_pei_zhi"
         private const val KEY_DANG_QIAN_YIN_YUAN = "dang_qian_yin_yuan"
@@ -30,7 +26,8 @@ class YinYuanPeiZhi(context: Context) {
     private var yunzhiToken: String = ""
     private var searchApiUrl: String = ""
     private var searchApiToken: String = ""
-    private var cenguiguiCnApiUrl: String = ""
+    private var qqmusicApiUrl: String = ""
+    private var qqmusicApiToken: String = ""
     private var configLoaded = false
 
     private fun jiaZaiPeiZhi() {
@@ -40,9 +37,10 @@ class YinYuanPeiZhi(context: Context) {
             yunzhiToken = ApiPeiZhiDanLi.huoQuToken("yunzhi_api")
             searchApiUrl = ApiPeiZhiDanLi.huoQuUrl("search_api")
             searchApiToken = ApiPeiZhiDanLi.huoQuToken("search_api")
-            cenguiguiCnApiUrl = ApiPeiZhiDanLi.huoQuUrl("cenguigui_cn_api")
+            qqmusicApiUrl = ApiPeiZhiDanLi.huoQuUrl("qqmusic_api")
+            qqmusicApiToken = ApiPeiZhiDanLi.huoQuToken("qqmusic_api")
             configLoaded = true
-            android.util.Log.d("YinYuanPeiZhi", "API配置加载: yunzhi=${yunzhiApiUrl.isNotEmpty()}, search=${searchApiUrl.isNotEmpty()}, cenguigui_cn=${cenguiguiCnApiUrl.isNotEmpty()}")
+            android.util.Log.d("YinYuanPeiZhi", "API配置加载: yunzhi=${yunzhiApiUrl.isNotEmpty()}, search=${searchApiUrl.isNotEmpty()}, qqmusic=${qqmusicApiUrl.isNotEmpty()}")
         } catch (e: Exception) {
             android.util.Log.e("YinYuanPeiZhi", "加载API配置失败: ${e.message}，下次调用将重试")
             // 不设置 configLoaded=true，允许后续重试
@@ -51,8 +49,7 @@ class YinYuanPeiZhi(context: Context) {
 
     fun huoQuDangQianYinYuan(): String {
         val saved = sharedPrefs.getString(KEY_DANG_QIAN_YIN_YUAN, YIN_YUAN_ZI_DONG) ?: YIN_YUAN_ZI_DONG
-        // 兼容旧版：cenguigui → yunzhi
-        return if (saved == YIN_YUAN_CENGGUI) YIN_YUAN_YUNZHI else saved
+        return saved
     }
 
     fun sheZhiYinYuan(yinYuan: String) {
@@ -70,26 +67,6 @@ class YinYuanPeiZhi(context: Context) {
             return ""
         }
         return "$yunzhiApiUrl?id=$geQuId&type=wy&token=$yunzhiToken"
-    }
-
-    /**
-     * 兼容旧方法名
-     */
-    fun huoQuCenguiguiUrl(geQuId: String): String {
-        return huoQuYunzhiUrl(geQuId)
-    }
-
-    /**
-     * 获取岑鬼鬼API URL（通过歌曲ID直接获取）
-     * @param geQuId 歌曲ID
-     */
-    fun huoQuCenguiguiCnUrl(geQuId: String): String {
-        jiaZaiPeiZhi()
-        if (cenguiguiCnApiUrl.isEmpty()) {
-            android.util.Log.e("YinYuanPeiZhi", "岑鬼鬼API URL未配置，无法构建请求")
-            return ""
-        }
-        return "$cenguiguiCnApiUrl?id=$geQuId&type=json&level=exhigh"
     }
 
     /**
@@ -121,34 +98,62 @@ class YinYuanPeiZhi(context: Context) {
     }
 
     /**
+     * 获取QQ音乐搜索URL
+     * @param geQuMing 歌曲名/关键词
+     */
+    fun huoQuQqmusicSouSuoUrl(geQuMing: String): String {
+        jiaZaiPeiZhi()
+        if (qqmusicApiUrl.isEmpty()) {
+            android.util.Log.e("YinYuanPeiZhi", "QQ音乐API URL未配置，无法构建请求")
+            return ""
+        }
+        val encodedName = java.net.URLEncoder.encode(geQuMing, "UTF-8")
+        return "$qqmusicApiUrl?msg=$encodedName&token=$qqmusicApiToken"
+    }
+
+    /**
+     * 获取QQ音乐详情URL（通过歌名+序号获取播放地址）
+     * @param geQuMing 歌曲名
+     * @param n 序号（1-20）
+     */
+    fun huoQuQqmusicDetailUrl(geQuMing: String, n: Int): String {
+        jiaZaiPeiZhi()
+        if (qqmusicApiUrl.isEmpty()) {
+            android.util.Log.e("YinYuanPeiZhi", "QQ音乐API URL未配置，无法构建请求")
+            return ""
+        }
+        val encodedName = java.net.URLEncoder.encode(geQuMing, "UTF-8")
+        return "$qqmusicApiUrl?msg=$encodedName&n=$n&token=$qqmusicApiToken"
+    }
+
+    /**
      * 获取主URL（根据当前配置的音源）
      * yunzhi: 直接用歌曲ID
-     * apicx: 用歌名（需要额外搜索步骤）
+     * qqmusic: 用歌名+序号
      */
     fun huoQuZhuUrl(geQuId: String, geQuMing: String): String {
         return when (huoQuDangQianYinYuan()) {
             YIN_YUAN_YUNZHI -> huoQuYunzhiUrl(geQuId)
-            YIN_YUAN_CENGGUI_CN -> huoQuCenguiguiCnUrl(geQuId)
-            else -> huoQuApicxSouSuoUrl(geQuMing)
+            else -> huoQuQqmusicDetailUrl(geQuMing, 1)
         }
     }
 
     /**
      * 获取备用URL（用于自动切换）
-     * 如果主音源是yunzhi/cenguigui_cn，备用是apicx；反之亦然
+     * 主音源是yunzhi时备用qqmusic；反之备用yunzhi
      */
     fun huoQuBeiYongUrl(geQuId: String, geQuMing: String): String {
         return when (huoQuDangQianYinYuan()) {
-            YIN_YUAN_YUNZHI, YIN_YUAN_CENGGUI_CN -> huoQuApicxSouSuoUrl(geQuMing)
+            YIN_YUAN_YUNZHI -> huoQuQqmusicDetailUrl(geQuMing, 1)
             else -> huoQuYunzhiUrl(geQuId)
         }
     }
 
     /**
      * 判断当前音源是否需要歌名参数
-     * yunzhi只需要歌曲ID，apicx需要歌名
+     * yunzhi只需要歌曲ID，qqmusic需要歌名
      */
     fun xuYaoGeQuMing(): Boolean {
-        return huoQuDangQianYinYuan() != YIN_YUAN_YUNZHI && huoQuDangQianYinYuan() != YIN_YUAN_CENGGUI_CN
+        return huoQuDangQianYinYuan() != YIN_YUAN_YUNZHI
     }
 }

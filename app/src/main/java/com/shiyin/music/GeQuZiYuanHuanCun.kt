@@ -42,7 +42,7 @@ class GeQuZiYuanHuanCun(private val context: Context) {
     )
 
     private val huanCunMap = ConcurrentHashMap<String, HuanCunTiaoMu>()
-    private val zhengZaiHuoQuUrl = ConcurrentHashMap<String, AtomicBoolean>()
+    private val zhengZaiHuoQuUrl = ConcurrentHashMap<String, MutableList<(Boolean, String?) -> Unit>>()
 
     init {
         if (!huanCunMuLu.exists()) {
@@ -165,7 +165,7 @@ class GeQuZiYuanHuanCun(private val context: Context) {
         })
     }
 
-    fun huoQuUrlBingHuanCun(geQuId: String, geQuMing: String, huiDiao: (Boolean, String?) -> Unit) {
+    fun huoQuUrlBingHuanCun(geQuId: String, geQuMing: String, geQuLaiYuan: String = "", huiDiao: (Boolean, String?) -> Unit) {
         val cachedPath = huoQuHuanCunLuJing(geQuId)
         if (cachedPath != null) {
             Log.d(TAG, "使用缓存: $geQuId")
@@ -173,26 +173,32 @@ class GeQuZiYuanHuanCun(private val context: Context) {
             return
         }
 
-        if (zhengZaiHuoQuUrl.containsKey(geQuId)) {
-            Log.d(TAG, "URL获取中，等待: $geQuId")
+        // computeIfAbsent 保证原子性：多次同时调用同一个 geQuId 只有第一个触发请求，
+        // 后续调用者的 huiDiao 追加到列表中等待请求完成
+        val huiDiaoLieBiao = zhengZaiHuoQuUrl.computeIfAbsent(geQuId) { mutableListOf() }
+        val shiDiYiGeQingQiuZhe = huiDiaoLieBiao.isEmpty()
+        huiDiaoLieBiao.add(huiDiao)
+        if (!shiDiYiGeQingQiuZhe) {
+            Log.d(TAG, "URL获取中，加入等待队列: $geQuId")
             return
         }
-        zhengZaiHuoQuUrl[geQuId] = AtomicBoolean(true)
 
-        val dangQianYinYuan = yinYuanPeiZhi.huoQuDangQianYinYuan()
-        Log.d(TAG, "当前音源: $dangQianYinYuan, 歌曲: $geQuId($geQuMing)")
+        Log.d(TAG, "歌曲来源: $geQuLaiYuan, 歌曲: $geQuId($geQuMing)")
 
-        when (dangQianYinYuan) {
-            YinYuanPeiZhi.YIN_YUAN_YUNZHI -> {
-                qingQiuYunzhiApi(geQuId) { chengGong, luJing ->
-                    zhengZaiHuoQuUrl.remove(geQuId)
-                    huiDiao(chengGong, luJing)
+        // 根据单曲 source 字段路由，不再依赖全局音源配置
+        when {
+            geQuLaiYuan == "qq" -> {
+                val qqUrl = yinYuanPeiZhi.huoQuQqmusicDetailUrl(geQuMing, 1)
+                qingQiuQQMusicUrl(qqUrl, geQuId) { chengGong, luJing ->
+                    val huiDiaoLieBiao = zhengZaiHuoQuUrl.remove(geQuId) ?: mutableListOf()
+                    huiDiaoLieBiao.forEach { it(chengGong, luJing) }
                 }
             }
             else -> {
-                qingQiuApicxApi(geQuId, geQuMing) { chengGong, luJing ->
-                    zhengZaiHuoQuUrl.remove(geQuId)
-                    huiDiao(chengGong, luJing)
+                // wy 或空值，走云智(网易云)API
+                qingQiuYunzhiApi(geQuId) { chengGong, luJing ->
+                    val huiDiaoLieBiao = zhengZaiHuoQuUrl.remove(geQuId) ?: mutableListOf()
+                    huiDiaoLieBiao.forEach { it(chengGong, luJing) }
                 }
             }
         }
@@ -247,6 +253,48 @@ class GeQuZiYuanHuanCun(private val context: Context) {
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "云智API解析失败: ${e.message}")
+                        huiDiao(false, null)
+                    }
+                }
+            }
+        })
+    }
+
+    /** QQ音乐API直接获取URL并下载缓存 */
+    private fun qingQiuQQMusicUrl(qqUrl: String, geQuId: String, huiDiao: (Boolean, String?) -> Unit) {
+        Log.d(TAG, "QQ音乐获取URL: $qqUrl")
+        
+        val request = Request.Builder()
+            .url(qqUrl)
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .addHeader("Accept", "application/json")
+            .build()
+        
+        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                Log.e(TAG, "QQ音乐API失败: ${e.message}")
+                huiDiao(false, null)
+            }
+            
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                response.use {
+                    try {
+                        val body = response.body?.string()
+                        if (response.isSuccessful && body != null) {
+                            val json = JSONObject(body)
+                            if (json.optInt("code", -1) == 200) {
+                                val dataObj = json.optJSONObject("data")
+                                val playUrl = dataObj?.optString("play_url", "")
+                                if (!playUrl.isNullOrEmpty()) {
+                                    xiaZaiBingHuanCun(geQuId, playUrl!!, huiDiao)
+                                    return
+                                }
+                            }
+                        }
+                        Log.e(TAG, "QQ音乐API返回无效数据")
+                        huiDiao(false, null)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "QQ音乐API解析失败: ${e.message}")
                         huiDiao(false, null)
                     }
                 }

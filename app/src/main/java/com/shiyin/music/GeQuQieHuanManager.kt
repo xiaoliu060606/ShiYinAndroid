@@ -19,17 +19,20 @@ class GeQuQieHuanManager(
         val id: String,
         val name: String,
         val artist: String,
-        val pic: String
+        val pic: String,
+        val source: String = "wy"
     )
 
     private var boFangLieBiao = mutableListOf<BoFangLieBiaoXiang>()
-    private var dangQianSuoYin = 0
+    @Volatile private var dangQianSuoYin = 0
     private var boFangMoShi = 0
     private var yuJiaZaiChuFa = AtomicBoolean(false)
     private var yuJiaZaiZhong = AtomicBoolean(false)
     @Volatile private var yuJiaZaiGeQuId: String? = null
     @Volatile private var yuJiaZaiLuJing: String? = null
     private var zhengZaiQieGe = AtomicBoolean(false)
+    @Volatile private var qieGeGeneration = 0L  // 递增计数器，用于 onH5UrlResponse 校验过期回调
+    @Volatile private var qieGeGenerationAtRequest = 0L  // 发起 H5 请求时的 generation 快照
     @Volatile private var nativeAudioPlayer: NativeAudioPlayer? = null
     private val qieGeChaoShiHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val QIE_GE_CHAO_SHI = 15000L
@@ -50,7 +53,8 @@ class GeQuQieHuanManager(
                     id = item.optString("id", ""),
                     name = item.optString("name", ""),
                     artist = item.optString("artist", ""),
-                    pic = item.optString("pic", "")
+                    pic = item.optString("pic", ""),
+                    source = item.optString("source", "wy")
                 ))
             }
             boFangLieBiao = xinLieBiao
@@ -82,6 +86,15 @@ class GeQuQieHuanManager(
     private fun chuFaYuJiaZai() {
         if (yuJiaZaiZhong.getAndSet(true)) return
 
+        // 修复：随机模式下预加载预测不可靠，跳过以减少无效API请求
+        if (boFangMoShi == 2) {
+            yuJiaZaiGeQuId = null
+            yuJiaZaiLuJing = null
+            yuJiaZaiZhong.set(false)
+            Log.d(TAG, "随机模式跳过预加载（不可预测下一首）")
+            return
+        }
+
         val jieGuo = jiSuanMuBiao("next")
         if (jieGuo == null) {
             yuJiaZaiZhong.set(false)
@@ -90,13 +103,18 @@ class GeQuQieHuanManager(
 
         val (xiaYiShou, _) = jieGuo
         yuJiaZaiGeQuId = xiaYiShou.id
-        Log.d(TAG, "预加载触发: ${xiaYiShou.name}(${xiaYiShou.id})")
+        Log.d(TAG, "预加载触发: ${xiaYiShou.name}(${xiaYiShou.id}), 来源=${xiaYiShou.source}")
 
-        geQuZiYuanHuanCun.huoQuUrlBingHuanCun(xiaYiShou.id, xiaYiShou.name) { chengGong, luJing ->
+        geQuZiYuanHuanCun.huoQuUrlBingHuanCun(xiaYiShou.id, xiaYiShou.name, xiaYiShou.source) { chengGong, luJing ->
             yuJiaZaiZhong.set(false)
             if (chengGong && luJing != null) {
-                yuJiaZaiLuJing = luJing
-                Log.d(TAG, "预加载成功: ${xiaYiShou.name}, 缓存大小: ${geQuZiYuanHuanCun.huoQuHuanCunDaXiao() / 1024 / 1024}MB")
+                // Guard：检查 yuJiaZaiGeQuId 是否仍指向预期歌曲（qingChuYuJiaZaiShuJu 可能已清空）
+                if (yuJiaZaiGeQuId == xiaYiShou.id) {
+                    yuJiaZaiLuJing = luJing
+                    Log.d(TAG, "预加载成功: ${xiaYiShou.name}, 缓存大小: ${geQuZiYuanHuanCun.huoQuHuanCunDaXiao() / 1024 / 1024}MB")
+                } else {
+                    Log.d(TAG, "预加载忽略: ${xiaYiShou.name}, 已被新预加载替代")
+                }
             } else {
                 yuJiaZaiGeQuId = null
                 Log.w(TAG, "预加载失败: ${xiaYiShou.name}")
@@ -164,6 +182,13 @@ class GeQuQieHuanManager(
         val yuJiaZaiId = yuJiaZaiGeQuId
         val yuJiaZaiLuJing = yuJiaZaiLuJing
 
+        if (yuJiaZaiId != null && yuJiaZaiLuJing != null) {
+            val preloadHit = fangXiang == "next" && yuJiaZaiId == muBiao.id
+            RiZhiGuanLiQi.logInfo(TAG, "[切歌] 预加载检查: 预加载ID=${yuJiaZaiId}, 目标ID=${muBiao.id}, 是否命中=${preloadHit}")
+        } else {
+            RiZhiGuanLiQi.logInfo(TAG, "[切歌] 预加载检查: 无预加载数据(yuJiaZaiId=${yuJiaZaiId}, yuJiaZaiLuJing=${if (yuJiaZaiLuJing != null) "有" else "无"})")
+        }
+
         if (fangXiang == "next" && yuJiaZaiId == muBiao.id && yuJiaZaiLuJing != null) {
             RiZhiGuanLiQi.logInfo(TAG, "[切歌] 使用预加载缓存: ${muBiao.name}")
             qingChuYuJiaZaiZhuangTai()
@@ -186,9 +211,33 @@ class GeQuQieHuanManager(
             return true
         }
 
-        // 缓存未命中，请求H5获取URL
-        RiZhiGuanLiQi.logInfo(TAG, "[切歌] 缓存未命中，请求H5获取URL: ${muBiao.name}")
-        qingQiuH5Url(muBiao, muBiaoSuoYin)
+// 缓存未命中，先用Native API直接获取（不依赖WebView，息屏也能工作）
+        RiZhiGuanLiQi.logInfo(TAG, "[切歌] 缓存未命中，尝试Native API获取: ${muBiao.name}, 来源=${muBiao.source}")
+        val apiGen = ++qieGeGeneration
+        qieGeGenerationAtRequest = apiGen
+        val muBiaoId = muBiao.id
+        val muBiaoSuoYin = muBiaoSuoYin
+        geQuZiYuanHuanCun.huoQuUrlBingHuanCun(muBiaoId, muBiao.name, muBiao.source) { chengGong, luJing ->
+            // 校验 generation：如果已有更新的切歌，丢弃此回调
+            if (qieGeGenerationAtRequest != qieGeGeneration) {
+                Log.w(TAG, "[切歌] 忽略过期Native API回调: 当前generation=${qieGeGeneration}, 回调所属=${qieGeGenerationAtRequest}")
+                return@huoQuUrlBingHuanCun
+            }
+            if (chengGong && luJing != null) {
+                // Native API成功，直接播放
+                qieGeChaoShiHandler.removeCallbacksAndMessages(null)
+                context.runOnUiThread {
+                    boFang(muBiaoId.let { id -> boFangLieBiao.find { it.id == id } } ?: return@runOnUiThread, muBiaoSuoYin, luJing)
+                    zhengZaiQieGe.set(false)
+                }
+            } else {
+                // Native API失败，请求H5作为最后兜底
+                RiZhiGuanLiQi.logInfo(TAG, "[切歌] Native API失败，请求H5获取URL: ${muBiao.name}")
+                qieGeGeneration++
+                qieGeGenerationAtRequest = qieGeGeneration
+                qingQiuH5Url(muBiao, muBiaoSuoYin)
+            }
+        }
 
         return true
     }
@@ -201,6 +250,11 @@ class GeQuQieHuanManager(
             if (context.isFinishing || context.isDestroyed) {
                 zhengZaiQieGe.set(false)
                 return
+            }
+            // 提前更新当前索引，防御：以防锁被意外释放或超时后新的切歌使用旧索引
+            // 特别是在随机模式下，旧索引会导致两次随机选歌选到不同歌曲
+            synchronized(this) {
+                dangQianSuoYin = muBiaoSuoYin
             }
             val json = JSONObject().apply {
                 put("id", muBiao.id)
@@ -231,6 +285,11 @@ class GeQuQieHuanManager(
      */
     fun onH5UrlResponse(geQuId: String, url: String, suoYin: Int) {
         Log.d(TAG, "[H5回调] 收到URL: id=$geQuId, url长度=${url.length}, 索引=$suoYin")
+        // 校验 generation：如果 qieGeGeneration 已被递增（新的切歌已进入），此响应为过期，丢弃
+        if (qieGeGenerationAtRequest != qieGeGeneration) {
+            Log.w(TAG, "[H5回调] 忽略过期响应: generation=${qieGeGenerationAtRequest}, 当前=${qieGeGeneration}")
+            return
+        }
         context.runOnUiThread {
             qieGeChaoShiHandler.removeCallbacksAndMessages(null)
             val muBiao = boFangLieBiao.find { it.id == geQuId }
@@ -240,7 +299,8 @@ class GeQuQieHuanManager(
             } else {
                 Log.w(TAG, "[H5回调] URL无效或歌曲未找到: muBiao=${muBiao != null}, url空=${url.isEmpty()}")
                 // 回退到原生获取
-                geQuZiYuanHuanCun.huoQuUrlBingHuanCun(geQuId, muBiao?.name ?: "") { chengGong, luJing ->
+                val fallbackSource = muBiao?.source ?: ""
+                geQuZiYuanHuanCun.huoQuUrlBingHuanCun(geQuId, muBiao?.name ?: "", fallbackSource) { chengGong, luJing ->
                     context.runOnUiThread {
                         if (chengGong && luJing != null && muBiao != null) {
                             boFang(muBiao, suoYin, luJing)
@@ -410,13 +470,30 @@ class GeQuQieHuanManager(
         yuJiaZaiLuJing = null
     }
 
+    /**
+     * 只清除预加载数据，不释放切歌锁(zhengZaiQieGe)和超时定时器。
+     * 用于异步H5请求场景：预加载数据可以清理，但切歌锁必须由切歌完成路径(boFang/超时)释放。
+     */
+    internal fun qingChuYuJiaZaiShuJu() {
+        yuJiaZaiChuFa.set(false)
+        yuJiaZaiZhong.set(false)
+        yuJiaZaiGeQuId = null
+        yuJiaZaiLuJing = null
+    }
+
     fun zhongZhiYuJiaZai() {
+        val hadPreload = yuJiaZaiGeQuId != null && yuJiaZaiLuJing != null
         yuJiaZaiChuFa.set(false)
         yuJiaZaiZhong.set(false)
         yuJiaZaiGeQuId = null
         yuJiaZaiLuJing = null
         qieGeChaoShiHandler.removeCallbacksAndMessages(null)
         zhengZaiQieGe.set(false)
+        if (hadPreload) {
+            RiZhiGuanLiQi.logInfo(TAG, "[预加载] zhongZhiYuJiaZai: 清除了预加载数据(此前存在)")
+        } else {
+            Log.d(TAG, "[预加载] zhongZhiYuJiaZai: 无预加载数据需清除")
+        }
     }
 
     @Synchronized

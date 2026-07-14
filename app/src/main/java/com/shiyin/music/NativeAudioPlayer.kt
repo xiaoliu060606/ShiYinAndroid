@@ -166,6 +166,8 @@ class NativeAudioPlayer(
         } catch (e: Exception) {
             _isPlaying = false
             isPrepared = false
+            cancelPrepareTimeout()
+            stopProgressUpdate()
             mediaPlayer?.release()
             mediaPlayer = null
             val cuoWuXinXi = "加载失败: ${e.message}, URL=${url.take(50)}..."

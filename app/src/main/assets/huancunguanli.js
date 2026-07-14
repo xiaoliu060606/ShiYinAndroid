@@ -149,8 +149,19 @@ function saveSongCacheToStorage(songId, songData) {
         return;
     }
     const key = CACHE_CONFIG.SONG_CACHE_PREFIX + songId;
+    // 读取现有缓存，保留可能丢失的字段（如url）
+    let existingUrl = null;
+    try {
+        const existing = localStorage.getItem(key);
+        if (existing) {
+            const parsed = JSON.parse(existing);
+            if (parsed.url) existingUrl = parsed.url;
+        }
+    } catch(e) { /* 忽略 */ }
     const cache = {
         ...songData,
+        // 如果新数据没有url但旧缓存有，保留旧缓存的url
+        ...(existingUrl && !songData.url ? { url: existingUrl } : {}),
         timestamp: Date.now(),
         accessCount: 1,
         lastAccessed: Date.now()

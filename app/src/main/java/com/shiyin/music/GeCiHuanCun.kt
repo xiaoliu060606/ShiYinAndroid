@@ -135,13 +135,33 @@ class GeCiHuanCun(private val context: Context) {
             return
         }
 
+        // 懒加载重试：每次调用都尝试确保配置已加载（ApiPeiZhiDanLi可能在init之后才就绪）
+        if (lyricApiUrl.isBlank()) {
+            lyricApiUrl = ApiPeiZhiDanLi.huoQuUrl("lyric_api")
+            lyricApiToken = ApiPeiZhiDanLi.huoQuToken("lyric_api")
+            val peiZhiOk = lyricApiUrl.isNotEmpty()
+            if (peiZhiOk) {
+                Log.d(TAG, "歌词API配置重新加载成功: url=$lyricApiUrl")
+            } else {
+                Log.d(TAG, "歌词API配置重新加载: 仍未就绪，等待下次重试")
+            }
+        }
+
         if (lyricApiUrl.isBlank() || lyricApiToken.isBlank() || lyricApiToken.startsWith("<TBD")) {
-            Log.e(TAG, "歌词API未配置或token为占位符，跳过请求: id=$geQuId")
+            val yuanYin = when {
+                lyricApiUrl.isBlank() -> "URL为空"
+                lyricApiToken.isBlank() -> "Token为空"
+                else -> "Token为占位符"
+            }
+            Log.e(TAG, "歌词API未配置，跳过请求: id=$geQuId, 原因=$yuanYin")
+            RiZhiGuanLiQi.logError(TAG, "歌词API未配置，跳过请求: id=$geQuId, 原因=$yuanYin")
             huiDiao(false, null)
             return
         }
 
         val apiUrl = "$lyricApiUrl?id=$geQuId&token=$lyricApiToken"
+        Log.d(TAG, "歌词API请求: id=$geQuId, url=${apiUrl.take(80)}...")
+        RiZhiGuanLiQi.logInfo(TAG, "歌词API请求: id=$geQuId, url=${apiUrl.take(80)}...")
         val request = Request.Builder()
             .url(apiUrl)
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
@@ -150,7 +170,8 @@ class GeCiHuanCun(private val context: Context) {
 
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                Log.e(TAG, "歌词API请求失败: ${e.message}")
+                Log.e(TAG, "歌词API请求失败: id=$geQuId, error=${e.message}")
+                RiZhiGuanLiQi.logError(TAG, "歌词API请求失败: id=$geQuId, error=${e.message}")
                 huiDiao(false, null)
             }
 
@@ -158,9 +179,13 @@ class GeCiHuanCun(private val context: Context) {
                 response.use {
                     try {
                         val body = response.body?.string()
+                        Log.d(TAG, "歌词API响应: id=$geQuId, httpCode=${response.code}, bodyLength=${body?.length ?: 0}")
+                        RiZhiGuanLiQi.logInfo(TAG, "歌词API响应: id=$geQuId, httpCode=${response.code}, bodyLength=${body?.length ?: 0}")
                         if (response.isSuccessful && body != null) {
                             val json = JSONObject(body)
-                            if (json.optInt("code", -1) == 200) {
+                            val apiCode = json.optInt("code", -1)
+                            if (apiCode == 200) {
+                                Log.d(TAG, "歌词API成功: id=$geQuId, hasLyric=${json.optJSONObject("data")?.optBoolean("has_lyric", true)}")
                                 // 新格式（apicx）：{ code, data:{lyric_data:{lyric, tlyric}, has_lyric} }
                                 // 旧消费方期望：{ code, lrc:{lyric}, tlyric:{lyric}, pureMusic }
                                 val dataObj = json.optJSONObject("data")
@@ -182,10 +207,13 @@ class GeCiHuanCun(private val context: Context) {
                                 huiDiao(true, resultStr)
                                 return
                             }
+                            Log.w(TAG, "歌词API业务失败: id=$geQuId, apiCode=$apiCode")
+                            RiZhiGuanLiQi.logError(TAG, "歌词API业务失败: id=$geQuId, apiCode=$apiCode")
                         }
                         huiDiao(false, null)
                     } catch (e: Exception) {
                         Log.e(TAG, "歌词API解析失败: ${e.message}")
+                        RiZhiGuanLiQi.logError(TAG, "歌词API解析失败: id=$geQuId, error=${e.message}")
                         huiDiao(false, null)
                     }
                 }

@@ -385,7 +385,7 @@
                     var normalizedPic = typeof guiFanHuaFengMianUrl === 'function'
                         ? guiFanHuaFengMianUrl(song.pic || '')
                         : (song.pic || '').replace(/(?<!:)\/\/+/g, '/');
-                    return { id: song.id, name: song.name || '', artist: song.artist || '', pic: normalizedPic };
+                    return { id: song.id, name: song.name || '', artist: song.artist || '', pic: normalizedPic, source: song.source || 'wy' };
                 }).filter(s => s !== null)
             };
             
@@ -441,7 +441,8 @@
                 artist: song.artist,
                 pic: typeof guiFanHuaFengMianUrl === 'function'
                     ? guiFanHuaFengMianUrl(song.pic || '')
-                    : (song.pic || '')
+                    : (song.pic || ''),
+                source: song.source || 'wy'
             };
             const songJson = JSON.stringify(songToSave);
             console.log('[AndroidBridge] 正在添加歌曲:', songJson);
@@ -515,7 +516,8 @@
                     index: index,
                     name: song.name || '未知歌曲',
                     artist: song.artist || '未知歌手',
-                    pic: normalizedPic
+                    pic: normalizedPic,
+                    source: song.source || 'wy'
                 };
             });
         }

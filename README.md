@@ -4,6 +4,11 @@
 
 ## 更新日志
 
+### v5.9 (2026-10-11)
+- ✅ 修复 15 项问题：后台切歌、播放模式、QQ 搜索匹配、悬浮窗歌词解绑等
+- ✅ API 配置改为 App 内置加密存储（混淆常量），本地覆盖入口为 `api_config.json`（已被 git 忽略）
+- ✅ 新增悬浮窗歌词、定时关闭、日志管理、全局异常处理等模块
+
 ### v1.1.0 (2026-03-20)
 - ✅ 修复进度条同步问题：歌曲完成后系统进度条正确重置
 - ✅ 实现版权处理机制：自动检测、标记和跳过无版权歌曲
@@ -20,10 +25,22 @@ ShiYinAndroid/
 │   ├── src/main/
 │   │   ├── java/com/shiyin/music/
 │   │   │   ├── MainActivity.kt          # 主Activity，WebView容器
-│   │   │   ├── MediaSessionManager.kt   # MediaSession管理
 │   │   │   ├── WebAppInterface.kt       # WebView Bridge接口
+│   │   │   ├── MediaSessionManager.kt   # MediaSession管理
+│   │   │   ├── MediaPlaybackService.kt  # 后台播放服务
 │   │   │   ├── MediaButtonReceiver.kt   # 媒体按钮接收器
-│   │   │   └── MediaPlaybackService.kt  # 后台播放服务
+│   │   │   ├── NativeAudioPlayer.kt     # 原生音频播放器
+│   │   │   ├── GeQuQieHuanManager.kt    # 歌曲切换管理
+│   │   │   ├── GeQuZiYuanHuanCun.kt     # 歌曲资源缓存
+│   │   │   ├── GeCiHuanCun.kt           # 歌词缓存
+│   │   │   ├── YinYuanPeiZhi.kt         # 音源配置
+│   │   │   ├── ApiPeiZhiDanLi.kt        # API配置单例
+│   │   │   ├── XuanFuGeCiManager.kt     # 悬浮窗歌词
+│   │   │   ├── DingShiGuanBiManager.kt  # 定时关闭管理
+│   │   │   ├── PlaylistRepository.kt    # 播放列表仓库
+│   │   │   ├── ClipboardHelper.kt       # 剪贴板工具
+│   │   │   ├── QuanJuYiChangChuLi.kt    # 全局异常处理
+│   │   │   └── RiZhiGuanLiQi.kt         # 日志管理器
 │   │   ├── res/
 │   │   │   ├── drawable/                # 图标资源
 │   │   │   ├── values/                  # 颜色、字符串、主题
@@ -95,6 +112,16 @@ ShiYinAndroid/
 3. 等待 Gradle 同步完成
 4. 点击 `Build` → `Build Bundle(s) / APK(s)` → `Build APK(s)`
 
+### 命令行编译
+
+需要 JDK 17 或更高版本：
+
+```bash
+./gradlew assembleDebug
+```
+
+本机环境：Android Studio（自带 JBR JDK）位于 `D:\安卓开发工具\`，Android SDK 位于 `D:\androidSDK`（SDK 路径可通过 `local.properties` 或 `ANDROID_HOME` 环境变量指定，`local.properties` 已被 git 忽略，不会提交）。
+
 ### 运行
 
 1. 连接 Android 设备或启动模拟器
@@ -114,7 +141,7 @@ ShiYinAndroid/
 
 - **最低版本**: Android 7.0 (API 24)
 - **目标版本**: Android 14 (API 34)
-- **MediaSession**: 使用 `androidx.media:media:1.7.0` 兼容库
+- **MediaSession**: 使用 `androidx.media:media:1.5.0` 兼容库
 
 ## 注意事项
 
@@ -145,7 +172,7 @@ ShiYinAndroid/
 ## 依赖库
 
 - AndroidX Core: 1.12.0
-- AndroidX Media: 1.7.0
+- AndroidX Media: 1.5.0
 - Material Design: 1.11.0
 - Glide: 4.16.0 (图片加载)
 - Kotlin Coroutines: 1.7.3

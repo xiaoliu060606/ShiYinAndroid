@@ -16,14 +16,25 @@ var lastKnownTime = 0;
 var lyricsEnabled = false;
 // 悬浮窗歌词独立开关：即使应用内歌词开关关闭，加载歌词给悬浮窗使用
 var xuanFuGeCiYiKaiQi = false;
+
+// 统一打印歌词开关状态，便于排查悬浮窗歌词不独立加载问题
+function daYinGeCiKaiGuanZhuangTai(tag, extra) {
+    var mainVal = (typeof lyricsEnabled !== 'undefined') ? lyricsEnabled : 'undefined';
+    var xuanFuVal = (typeof xuanFuGeCiYiKaiQi !== 'undefined') ? xuanFuGeCiYiKaiQi : 'undefined';
+    var extraStr = extra ? (', ' + extra) : '';
+    console.log('[歌词开关][' + tag + '] lyricsEnabled=' + mainVal + ', xuanFuGeCiYiKaiQi=' + xuanFuVal + extraStr);
+}
+
 function shouldLoadLyrics() {
-    return (typeof lyricsEnabled !== 'undefined' && lyricsEnabled) 
+    var enabled = (typeof lyricsEnabled !== 'undefined' && lyricsEnabled)
         || (typeof xuanFuGeCiYiKaiQi !== 'undefined' && xuanFuGeCiYiKaiQi);
+    return enabled;
 }
 var lyrics = [];
 var currentLyricIndex = -1;
 var loadedLyricSongId = null;
 var lyricRetryCount = 0;
+var lyricTriedWebApi = false; // Bug 8: 标记是否已尝试JS侧API兜底
 var lyricTimer = null;
 
 // 加载相关变量
@@ -204,7 +215,9 @@ function updateProgress() {
 
 // 切换歌词显示状态
 function toggleLyrics() {
+    var oldVal = lyricsEnabled;
     lyricsEnabled = !lyricsEnabled;
+    daYinGeCiKaiGuanZhuangTai('toggleLyrics', 'old=' + oldVal + ', new=' + lyricsEnabled);
 
     if (lyricsEnabled) {
         lyricsToggle.classList.add('active');
@@ -219,25 +232,36 @@ function toggleLyrics() {
 
         // 关闭歌词时清空通知栏歌词，恢复显示歌手名
         if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.updateGeCiHang === 'function') {
-            try { AndroidBridge.updateGeCiHang(""); } catch(e) {}
+            try { AndroidBridge.updateGeCiHang(""); } catch(e) { console.warn('[ShiYin] 通知原生歌词失败:', e); }
         }
     }
 }
 
 // 为当前播放歌曲加载歌词
 function loadLyricsForCurrentSong() {
-    if (!isInitialized) return;
+    var canLoad = shouldLoadLyrics();
+    daYinGeCiKaiGuanZhuangTai('loadLyricsForCurrentSong', 'isInitialized=' + isInitialized + ', currentPlayingSongId=' + currentPlayingSongId + ', loadedLyricSongId=' + loadedLyricSongId + ', shouldLoad=' + canLoad);
+    if (!isInitialized || !canLoad) {
+        daYinGeCiKaiGuanZhuangTai('loadLyricsForCurrentSong.skip', 'isInitialized=' + isInitialized + ', shouldLoad=' + canLoad);
+        return;
+    }
 
     // 只有当歌词未加载或与当前播放歌曲不匹配时才加载
     if (currentPlayingSongId && (!loadedLyricSongId || loadedLyricSongId !== currentPlayingSongId)) {
+        console.log('[歌词加载] 开始加载当前歌曲歌词: ' + currentPlayingSongId);
         lyricRetryCount = 0;
         loadLyrics(currentPlayingSongId);
+    } else {
+        console.log('[歌词加载] 跳过加载: 歌词已加载或当前歌曲ID为空');
     }
 }
 
 // 更新歌词显示 - 使用毫秒级时间比较
 function updateLyricsDisplay(forceUpdate = false) {
-    if (!lyricsEnabled || lyrics.length === 0) return;
+    if (!shouldLoadLyrics() || lyrics.length === 0) {
+        daYinGeCiKaiGuanZhuangTai('updateLyricsDisplay.skip', 'lyrics.length=' + lyrics.length + ', forceUpdate=' + forceUpdate);
+        return;
+    }
 
     // 原生播放器模式下使用 currentProgress
     let currentTime;
@@ -266,7 +290,7 @@ function updateLyricsDisplay(forceUpdate = false) {
 
     // 推送当前歌词到通知栏
     if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.updateGeCiHang === 'function') {
-        try { AndroidBridge.updateGeCiHang(currentItem.text || ""); } catch(e) {}
+        try { AndroidBridge.updateGeCiHang(currentItem.text || ""); } catch(e) { console.warn('[ShiYin] 通知原生歌词失败:', e); }
     }
 
     // 应用歌词动画

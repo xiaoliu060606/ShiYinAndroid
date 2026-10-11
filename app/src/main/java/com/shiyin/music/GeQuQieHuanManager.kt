@@ -20,7 +20,8 @@ class GeQuQieHuanManager(
         val name: String,
         val artist: String,
         val pic: String,
-        val source: String = "wy"
+        val source: String = "wy",
+        val qqIndex: Int = 1
     )
 
     private var boFangLieBiao = mutableListOf<BoFangLieBiaoXiang>()
@@ -54,7 +55,8 @@ class GeQuQieHuanManager(
                     name = item.optString("name", ""),
                     artist = item.optString("artist", ""),
                     pic = item.optString("pic", ""),
-                    source = item.optString("source", "wy")
+                    source = item.optString("source", "wy"),
+                    qqIndex = item.optInt("qqIndex", 1)
                 ))
             }
             boFangLieBiao = xinLieBiao
@@ -77,7 +79,9 @@ class GeQuQieHuanManager(
     }
 
     fun chuLiJinDuBianHua(weiZhi: Long, zongShiChang: Long) {
-        if (zongShiChang <= 0) return
+        // 修复：即使 zongShiChang <= 0（未知时长），也允许触发预加载
+        // 预加载只需要知道下一首是哪首歌，不需要时长信息
+        if (boFangLieBiao.isEmpty()) return
         if (yuJiaZaiChuFa.compareAndSet(false, true)) {
             chuFaYuJiaZai()
         }
@@ -140,6 +144,7 @@ class GeQuQieHuanManager(
             else -> dangQianSuoYin
         }
         val muBiao = boFangLieBiao.getOrElse(muBiaoSuoYin) { null } ?: return null
+        Log.d(TAG, "[计算目标] 方向=$fangXiang, 当前索引=$dangQianSuoYin, 模式=$boFangMoShi(实际=$shiJiMoShi), 目标索引=$muBiaoSuoYin, 目标歌曲=${muBiao.name}(${muBiao.id}), 列表大小=${boFangLieBiao.size}")
         return Pair(muBiao, muBiaoSuoYin)
     }
 
@@ -215,19 +220,19 @@ class GeQuQieHuanManager(
         RiZhiGuanLiQi.logInfo(TAG, "[切歌] 缓存未命中，尝试Native API获取: ${muBiao.name}, 来源=${muBiao.source}")
         val apiGen = ++qieGeGeneration
         qieGeGenerationAtRequest = apiGen
-        val muBiaoId = muBiao.id
-        val muBiaoSuoYin = muBiaoSuoYin
-        geQuZiYuanHuanCun.huoQuUrlBingHuanCun(muBiaoId, muBiao.name, muBiao.source) { chengGong, luJing ->
+        geQuZiYuanHuanCun.huoQuUrlBingHuanCun(muBiao.id, muBiao.name, muBiao.source) { chengGong, luJing ->
             // 校验 generation：如果已有更新的切歌，丢弃此回调
             if (qieGeGenerationAtRequest != qieGeGeneration) {
                 Log.w(TAG, "[切歌] 忽略过期Native API回调: 当前generation=${qieGeGeneration}, 回调所属=${qieGeGenerationAtRequest}")
+                // 修复A4：过期回调兜底释放切歌锁，避免新切歌在15s超时窗口内被:156拒绝
+                guDingShiFangQieGeSuo(qieGeGeneration)
                 return@huoQuUrlBingHuanCun
             }
             if (chengGong && luJing != null) {
                 // Native API成功，直接播放
                 qieGeChaoShiHandler.removeCallbacksAndMessages(null)
                 context.runOnUiThread {
-                    boFang(muBiaoId.let { id -> boFangLieBiao.find { it.id == id } } ?: return@runOnUiThread, muBiaoSuoYin, luJing)
+                    boFang(muBiao, muBiaoSuoYin, luJing)
                     zhengZaiQieGe.set(false)
                 }
             } else {
@@ -288,6 +293,8 @@ class GeQuQieHuanManager(
         // 校验 generation：如果 qieGeGeneration 已被递增（新的切歌已进入），此响应为过期，丢弃
         if (qieGeGenerationAtRequest != qieGeGeneration) {
             Log.w(TAG, "[H5回调] 忽略过期响应: generation=${qieGeGenerationAtRequest}, 当前=${qieGeGeneration}")
+            // 修复A4：过期回调兜底释放切歌锁，避免新切歌在15s超时窗口内被:156拒绝
+            guDingShiFangQieGeSuo(qieGeGeneration)
             return
         }
         context.runOnUiThread {
@@ -468,6 +475,22 @@ class GeQuQieHuanManager(
     private fun qingChuYuJiaZaiZhuangTai() {
         yuJiaZaiGeQuId = null
         yuJiaZaiLuJing = null
+    }
+
+    /**
+     * 修复A4：过期切歌回调的兜底锁释放。
+     * 过期回调直接 return 时，持锁切歌可能仍在等待永不到来的匹配回调，导致新切歌在15s超时前被:156拒绝。
+     * 这里延迟检测：仅当锁仍持有、且代际未被更新的切歌推进时才释放，避免误伤正在进行的新切歌。
+     */
+    private fun guDingShiFangQieGeSuo(kuaiZhaoDaiJi: Long) {
+        qieGeChaoShiHandler.postDelayed({
+            if (zhengZaiQieGe.get() && qieGeGeneration == kuaiZhaoDaiJi) {
+                zhengZaiQieGe.set(false)
+                val msg = "[切歌] 过期回调兜底释放锁(代际=$kuaiZhaoDaiJi)"
+                Log.w(TAG, msg)
+                RiZhiGuanLiQi.logInfo(TAG, msg)
+            }
+        }, 1500)
     }
 
     /**

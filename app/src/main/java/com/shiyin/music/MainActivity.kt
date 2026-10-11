@@ -118,13 +118,25 @@ class MainActivity : AppCompatActivity() {
             webView.evaluateJavascript(
                 "javascript:typeof onXuanFuQuanXianJieGuo==='function'&&onXuanFuQuanXianJieGuo(true)", null
             )
-            // 从设置返回后Activity可能被重建，播放器已销毁 → 通知H5恢复播放
-            val savedState = quanJuYiChangChuLi.duQuBaoCunDeZhuangTai()
-            if (savedState != null && savedState.shiFouBoFangZhong) {
-                android.util.Log.d("MainActivity", "悬浮窗权限返回，恢复播放状态: ${savedState.geQuMing}")
-                webView.postDelayed({
-                    quanJuYiChangChuLi.tongZhiH5HuiFuBoFang(savedState)
-                }, 1000)
+            // 修复Bug 4 & Bug 5：从设置返回后，若播放器仍在播放则继续当前歌曲，不触发恢复切换
+            // 只有播放器已销毁/空闲时才从保存状态恢复
+            val player = webAppInterface.currentPlayer
+            val zhengZaiBoFang = player != null && player.isPlayingState()
+            if (!zhengZaiBoFang) {
+                val savedState = quanJuYiChangChuLi.duQuBaoCunDeZhuangTai()
+                if (savedState != null && savedState.shiFouBoFangZhong) {
+                    android.util.Log.d("MainActivity", "悬浮窗权限返回，播放器空闲，恢复播放状态: ${savedState.geQuMing}")
+                    webView.postDelayed({
+                        quanJuYiChangChuLi.tongZhiH5HuiFuBoFang(savedState)
+                    }, 1000)
+                }
+            } else {
+                android.util.Log.d("MainActivity", "悬浮窗权限返回，播放器正在播放，继续当前歌曲")
+                // 同步当前播放状态到悬浮窗
+                webView.evaluateJavascript(
+                    "try{if(typeof sendLyricData==='function'&&typeof lyrics!=='undefined'&&Array.isArray(lyrics)&&lyrics.length>0){sendLyricData(lyrics)}else{console.log('[AndroidBridge] 悬浮窗已开启，请求加载歌词');if(typeof loadLyricsForCurrentSong==='function')loadLyricsForCurrentSong();}}catch(e){}",
+                    null
+                )
             }
         } else {
             webView.evaluateJavascript(
@@ -163,6 +175,9 @@ class MainActivity : AppCompatActivity() {
         mediaSessionManager = MediaSessionManager(this)
 
         clipboardHelper = ClipboardHelper(this)
+
+        // 关键修复：API配置单例必须在所有API消费者之前初始化
+        ApiPeiZhiDanLi.chuShiHua(this)
 
         webAppInterface = WebAppInterface(this, mediaSessionManager, clipboardHelper, playlistRepository)
         mediaSessionManager.setGeQuQieHuanManager(webAppInterface.geQuQieHuanManager)
@@ -362,7 +377,7 @@ class MainActivity : AppCompatActivity() {
                 allowContentAccess = true
 
                 // 允许 file:// 页面向外部发起跨域请求
-                // yunzhiapi.cn 等第三方API无法配置CORS头，必须启用
+                // 第三方音乐API无法配置CORS头，必须启用
                 allowUniversalAccessFromFileURLs = true
                 allowFileAccessFromFileURLs = false
                 
@@ -517,14 +532,41 @@ class MainActivity : AppCompatActivity() {
     private fun injectPlaylistData() {
         val js = "try { var data = JSON.parse(AndroidBridge.loadPlaylist()); window.playlistJsonData = data; if (typeof songIds !== 'undefined' && data.songs && Array.isArray(data.songs)) { songIds = data.songs.map(function(s) { return s.id; }); playlistData = data.songs.map(function(s, i) { return { id: s.id, index: i, name: s.name || '未知歌曲', artist: s.artist || '未知歌手', pic: s.pic || '' }; }); isPlaylistLoaded = true; if (typeof renderPlaylist === 'function') renderPlaylist(); } console.log('[Android] 播放列表已注入，共 ' + (data.songs ? data.songs.length : 0) + ' 首歌曲'); } catch(e) { console.error('[Android] 播放列表注入失败:', e); }"
         webView.evaluateJavascript(js, null)
-        // 初始化API配置单例（确保只读取一次 api_config.json）
-        ApiPeiZhiDanLi.chuShiHua(this)
         // 注入歌词API配置（Web axios 兜底路径使用）
+        // 注意：ApiPeiZhiDanLi.chuShiHua 已在 WebAppInterface 之前初始化，此处无需重复
         zhuRuGeCiApiPeiZhi()
         // 注入搜索API配置（Web axios 兜底路径使用）
         zhuRuSouSuoApiPeiZhi()
         // 注入云智API配置（Web API_SERVERS 使用）
         zhuRuYunZhiApiPeiZhi()
+        // 注入QQ音乐API配置（Web QQ音乐搜索使用）
+        zhuRuQqmusicApiPeiZhi()
+        // 注入应用版本号（H5 设置面板 OTA 更新检查显示当前版本用）
+        zhuRuBanBenHao()
+    }
+
+    /**
+     * 读取应用 versionName 并注入到 WebView
+     * H5 设置面板 initCheckUpdate 优先读 window.__APP_VERSION__ 显示当前版本号，未注入时显示"未知"
+     * 注意：项目 buildConfig=false，无 BuildConfig 类，必须用 PackageManager 读取
+     */
+    private fun zhuRuBanBenHao() {
+        try {
+            val pkg = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0)
+            }
+            val banBenHao = pkg.versionName ?: "未知"
+            // 版本号按字符串注入，转义反斜杠和单引号防止 JS 语法错误
+            val safeBanBenHao = banBenHao.replace("\\", "\\\\").replace("'", "\\'")
+            val injectJs = "try{window.__APP_VERSION__='$safeBanBenHao';console.log('[Android] 应用版本号已注入: $safeBanBenHao')}catch(e){console.error('[Android] 应用版本号注入失败',e)}"
+            webView.evaluateJavascript(injectJs, null)
+            android.util.Log.d("MainActivity", "应用版本号已注入: $safeBanBenHao")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "注入应用版本号失败: ${e.message}")
+        }
     }
 
     /**
@@ -539,7 +581,7 @@ class MainActivity : AppCompatActivity() {
             val safeToken = token.replace("\\", "\\\\").replace("'", "\\'")
             val injectJs = "try{window.__LYRIC_API_URL__='$safeUrl';window.__LYRIC_API_TOKEN__='$safeToken';console.log('[Android] 歌词API配置已注入')}catch(e){console.error('[Android] 歌词API配置注入失败',e)}"
             webView.evaluateJavascript(injectJs, null)
-            android.util.Log.d("MainActivity", "歌词API配置已注入: url=$url, tokenConfigured=${token.isNotEmpty() && !token.startsWith("<TBD")}")
+            android.util.Log.d("MainActivity", "歌词API配置已注入: url=${ApiPeiZhiDanLi.daMaUrl(url)}, tokenConfigured=${token.isNotEmpty()}")
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "注入歌词API配置失败: ${e.message}")
         }
@@ -557,7 +599,7 @@ class MainActivity : AppCompatActivity() {
             val safeToken = token.replace("\\", "\\\\").replace("'", "\\'")
             val injectJs = "try{window.__SEARCH_API_URL__='$safeUrl';window.__SEARCH_API_TOKEN__='$safeToken';console.log('[Android] 搜索API配置已注入')}catch(e){console.error('[Android] 搜索API配置注入失败',e)}"
             webView.evaluateJavascript(injectJs, null)
-            android.util.Log.d("MainActivity", "搜索API配置已注入: url=$url, tokenConfigured=${token.isNotEmpty()}")
+            android.util.Log.d("MainActivity", "搜索API配置已注入: url=${ApiPeiZhiDanLi.daMaUrl(url)}, tokenConfigured=${token.isNotEmpty()}")
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "注入搜索API配置失败: ${e.message}")
         }
@@ -575,13 +617,31 @@ class MainActivity : AppCompatActivity() {
             val safeToken = token.replace("\\", "\\\\").replace("'", "\\'")
             val injectJs = "try{window.__YUNZHI_API_URL__='$safeUrl';window.__YUNZHI_API_TOKEN__='$safeToken';console.log('[Android] 云智API配置已注入')}catch(e){console.error('[Android] 云智API配置注入失败',e)}"
             webView.evaluateJavascript(injectJs, null)
-            android.util.Log.d("MainActivity", "云智API配置已注入: url=$url, tokenConfigured=${token.isNotEmpty()}")
+            android.util.Log.d("MainActivity", "云智API配置已注入: url=${ApiPeiZhiDanLi.daMaUrl(url)}, tokenConfigured=${token.isNotEmpty()}")
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "注入云智API配置失败: ${e.message}")
         }
         // 无论注入成功与否，都通知 H5 初始化 API_SERVERS
         // 即使 window.__XXX__ 未注入，initApiServers 也会用空字符串初始化，避免 API_SERVERS 永远为空数组
         webView.evaluateJavascript("if(typeof initApiServers==='function'){initApiServers()}else{console.warn('[Android] initApiServers未定义')}", null)
+    }
+
+    /**
+     * 从 ApiPeiZhiDanLi 读取QQ音乐API配置并注入到 WebView
+     * Web 层 executeQqSearch 用 window.__QQMUSIC_API_URL__ / __QQMUSIC_API_TOKEN__
+     */
+    private fun zhuRuQqmusicApiPeiZhi() {
+        try {
+            val url = ApiPeiZhiDanLi.huoQuUrl("qqmusic_api")
+            val token = ApiPeiZhiDanLi.huoQuToken("qqmusic_api")
+            val safeUrl = url.replace("\\", "\\\\").replace("'", "\\'")
+            val safeToken = token.replace("\\", "\\\\").replace("'", "\\'")
+            val injectJs = "try{window.__QQMUSIC_API_URL__='$safeUrl';window.__QQMUSIC_API_TOKEN__='$safeToken';console.log('[Android] QQ音乐API配置已注入')}catch(e){console.error('[Android] QQ音乐API配置注入失败',e)}"
+            webView.evaluateJavascript(injectJs, null)
+            android.util.Log.d("MainActivity", "QQ音乐API配置已注入: url=${ApiPeiZhiDanLi.daMaUrl(url)}, tokenConfigured=${token.isNotEmpty()}")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "注入QQ音乐API配置失败: ${e.message}")
+        }
     }
 
     /**
@@ -921,9 +981,15 @@ class MainActivity : AppCompatActivity() {
         
         RiZhiGuanLiQi.logInfo("MainActivity", "应用销毁 - 开始清理资源")
 
-        try { unregisterReceiver(meiTiJiangJiJieShouQi) } catch (_: Exception) {}
-        try { unregisterReceiver(yinPinZaoYinJieShouQi) } catch (_: Exception) {}
-        try { unregisterReceiver(lanYaDuanKaiJieShouQi) } catch (_: Exception) {}
+        try { unregisterReceiver(meiTiJiangJiJieShouQi) } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "注销媒体按钮广播接收器失败: ${e.message}")
+        }
+        try { unregisterReceiver(yinPinZaoYinJieShouQi) } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "注销音频噪声广播接收器失败: ${e.message}")
+        }
+        try { unregisterReceiver(lanYaDuanKaiJieShouQi) } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "注销蓝牙断开广播接收器失败: ${e.message}")
+        }
 
         rootLayout?.removeView(webView)
         webView.stopLoading()

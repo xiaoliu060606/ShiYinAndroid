@@ -86,9 +86,21 @@ class XuanFuGeCiManager(
         val screenWidth = context.resources.displayMetrics.widthPixels
         val viewWidth = (screenWidth * kuanDu / 100f).toInt()
 
+        // 初始歌词：优先按当前播放进度定位，避免开启时短暂显示第一行
+        val player = playerProvider()
+        val initialText = if (geCiLieBiao.isNotEmpty()) {
+            if (player != null && player.isPlayingState()) {
+                findCurrentLyric(player.getCurrentPosition())
+            } else {
+                geCiLieBiao[0].second
+            }
+        } else {
+            DEFAULT_TEXT
+        }
+
         xuanFuView = TextView(context).apply {
-            // 如果有缓存的歌词，立即显示；否则显示默认提示
-            text = if (geCiLieBiao.isNotEmpty() && geCiLieBiao[0].second.isNotEmpty()) geCiLieBiao[0].second else DEFAULT_TEXT
+            // 如果有缓存的歌词，按当前播放进度定位显示；否则显示默认提示
+            text = initialText
             setTextColor(Color.parseColor(yanSe))
             textSize = ziHao
             alpha = touMingDu / 100f
@@ -116,6 +128,7 @@ class XuanFuGeCiManager(
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {

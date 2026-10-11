@@ -2,13 +2,11 @@ package com.shiyin.music
 
 import android.content.Context
 import android.util.Log
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class GeQuZiYuanHuanCun(private val context: Context) {
@@ -18,16 +16,14 @@ class GeQuZiYuanHuanCun(private val context: Context) {
         private const val HUAN_CUN_MU_LU_NAME = "ge_qu_huan_cun"
         private const val ZUI_DA_HUAN_CUN_DA_XIAO = 1024L * 1024 * 1024 // 1GB
         private const val GUO_QI_HAO_MIAO = 30L * 24 * 60 * 60 * 1000L // 1个月
-        private const val QING_LI_JIAN_GE_HAO_MIAO = 30L * 24 * 60 * 60 * 1000L // 1个月
+        private const val QING_LI_JIAN_GE_HAO_MIAO = 24L * 60 * 60 * 1000L // 1天：过期+容量每日检查一次
         private const val SHANG_CI_QING_LI_PIAN_HAO = "shang_ci_qing_li_shi_jian"
     }
 
     private val yinYuanPeiZhi = YinYuanPeiZhi(context)
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+    // 全项目共享 OkHttp 单例（歌曲流式下载，读超时 30s；连接池/线程池统一，见 OkHttpDanLi）
+    private val httpClient = OkHttpDanLi.xiaZaiKeHuDuan
 
     private val huanCunMuLu = File(context.cacheDir, HUAN_CUN_MU_LU_NAME)
     private val zhengZaiXiaZai = ConcurrentHashMap<String, AtomicBoolean>()
@@ -50,6 +46,25 @@ class GeQuZiYuanHuanCun(private val context: Context) {
         }
         chuangJianHuanCunMuLu()
         huiFuHuanCunPeiZhi()
+        // 修复：原 ZUI_DA_HUAN_CUN_DA_XIAO(1GB)/qingLiGuoQiHuanCun 声明后无人调用，
+        // 歌曲缓存只增不减。参照 GeCiHuanCun.dingShiQingLi 模式：init 时触发一次，
+        // 距上次清理不足 1 天则跳过，实现"按天定时"过期清理 + 容量淘汰。
+        dingShiQingLi()
+    }
+
+    /**
+     * 定期清理（每日至多一次）：先清过期缓存，再按容量淘汰
+     * 上次清理时间记录在 SharedPreferences，app 每次启动 init 时检查
+     */
+    private fun dingShiQingLi() {
+        val now = System.currentTimeMillis()
+        val shangCiQingLi = sharedPreferences.getLong(SHANG_CI_QING_LI_PIAN_HAO, 0L)
+        if (now - shangCiQingLi < QING_LI_JIAN_GE_HAO_MIAO) return
+
+        Log.d(TAG, "触发歌曲缓存定期清理（过期+容量）")
+        qingLiGuoQiHuanCun()
+        qingLiHuanCunDaoDaXiao()
+        sharedPreferences.edit().putLong(SHANG_CI_QING_LI_PIAN_HAO, now).apply()
     }
 
     private fun huiFuHuanCunPeiZhi() {
@@ -154,6 +169,8 @@ class GeQuZiYuanHuanCun(private val context: Context) {
                     )
                     huanCunMap[geQuId] = tiaoMu
                     baoCunHuanCunPeiZhi()
+                    // 与 GeCiHuanCun.baoCunGeCi 一致：下载后即检查容量，防止单次会话内缓存无限增长
+                    qingLiHuanCunDaoDaXiao()
                     Log.d(TAG, "缓存成功: $geQuId, 大小: ${daXiao / 1024 / 1024}MB")
                     huiDiao?.invoke(true, benDiWenJian.absolutePath)
                 } catch (e: Exception) {
@@ -188,7 +205,8 @@ class GeQuZiYuanHuanCun(private val context: Context) {
         // 根据单曲 source 字段路由，不再依赖全局音源配置
         when {
             geQuLaiYuan == "qq" -> {
-                val qqUrl = yinYuanPeiZhi.huoQuQqmusicDetailUrl(geQuMing, 1)
+                // 传递 geQuId 作为 &id= 参数，实现同名歌曲精确匹配
+                val qqUrl = yinYuanPeiZhi.huoQuQqmusicDetailUrl(geQuMing, 1, geQuId)
                 qingQiuQQMusicUrl(qqUrl, geQuId) { chengGong, luJing ->
                     val huiDiaoLieBiao = zhengZaiHuoQuUrl.remove(geQuId) ?: mutableListOf()
                     huiDiaoLieBiao.forEach { it(chengGong, luJing) }
@@ -207,7 +225,7 @@ class GeQuZiYuanHuanCun(private val context: Context) {
     /** 云智API请求（通过歌曲ID直接获取） */
     private fun qingQiuYunzhiApi(geQuId: String, huiDiao: (Boolean, String?) -> Unit) {
         val apiUrl = yinYuanPeiZhi.huoQuYunzhiUrl(geQuId)
-        Log.d(TAG, "云智API: $apiUrl")
+        Log.d(TAG, "云智API: ${ApiPeiZhiDanLi.daMaUrl(apiUrl)}")
 
         val request = Request.Builder()
             .url(apiUrl)
@@ -262,7 +280,7 @@ class GeQuZiYuanHuanCun(private val context: Context) {
 
     /** QQ音乐API直接获取URL并下载缓存 */
     private fun qingQiuQQMusicUrl(qqUrl: String, geQuId: String, huiDiao: (Boolean, String?) -> Unit) {
-        Log.d(TAG, "QQ音乐获取URL: $qqUrl")
+        Log.d(TAG, "QQ音乐获取URL: ${ApiPeiZhiDanLi.daMaUrl(qqUrl)}")
         
         val request = Request.Builder()
             .url(qqUrl)
@@ -422,6 +440,24 @@ class GeQuZiYuanHuanCun(private val context: Context) {
                 shanChuHuanCun(entry.key)
             }
         }
+    }
+
+    /**
+     * 容量清理：超过 ZUI_DA_HUAN_CUN_DA_XIAO(1GB) 时按最早缓存时间淘汰，
+     * 直到降到 80% 水位。淘汰后必须持久化，避免 SharedPreferences 残留失效条目。
+     */
+    private fun qingLiHuanCunDaoDaXiao() {
+        var totalSize = huanCunMap.values.sumOf { it.daXiao }
+        if (totalSize <= ZUI_DA_HUAN_CUN_DA_XIAO) return
+
+        val sorted = huanCunMap.values.sortedBy { it.huanCunShiJian }
+        for (tiaoMu in sorted) {
+            if (totalSize <= ZUI_DA_HUAN_CUN_DA_XIAO * 0.8) break
+            shanChuHuanCun(tiaoMu.geQuId)
+            totalSize -= tiaoMu.daXiao
+        }
+        baoCunHuanCunPeiZhi()
+        Log.d(TAG, "歌曲缓存容量清理后: ${huanCunMap.size}首")
     }
 
     private fun baoCunHuanCunPeiZhi() {

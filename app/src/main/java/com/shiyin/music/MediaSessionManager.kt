@@ -83,6 +83,8 @@ class MediaSessionManager(private val context: MainActivity) {
                     updatePlaybackState(false)
                     updateNotification()
                     context.webAppInterface.tongZhiH5YinPinJiaoDianBianHua(false)
+                    // 修复A5：对齐 onPause 通知格式，带 reason="paused" 防止 H5 切歌兜底误判为自然停止
+                    context.webAppInterface.tongZhiH5BoFangZhuangTaiBianHua(false, "paused")
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
@@ -97,6 +99,8 @@ class MediaSessionManager(private val context: MainActivity) {
                     updatePlaybackState(false)
                     updateNotification()
                     context.webAppInterface.tongZhiH5YinPinJiaoDianBianHua(false)
+                    // 修复A5：对齐 onPause 通知格式，带 reason="paused" 防止 H5 切歌兜底误判为自然停止
+                    context.webAppInterface.tongZhiH5BoFangZhuangTaiBianHua(false, "paused")
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
@@ -174,8 +178,8 @@ class MediaSessionManager(private val context: MainActivity) {
                     if (player != null) {
                         android.util.Log.d("ShiYinSync", "[MediaSession] onPause: 直接控制原生播放器暂停")
                         player.pause()
-                        // 关键修复：同步状态到 H5，让 UI 更新
-                        context.webAppInterface.tongZhiH5BoFangZhuangTaiBianHua(false)
+                        // 关键修复：同步状态到 H5，让 UI 更新；传 reason=paused 防止H5切歌兜底误触发
+                        context.webAppInterface.tongZhiH5BoFangZhuangTaiBianHua(false, "paused")
                     } else {
                         android.util.Log.w("ShiYinSync", "[MediaSession] onPause: NativeAudioPlayer 未注入，降级到 Web 层控制")
                         if (!isUpdatingFromWeb.get()) {
@@ -721,7 +725,8 @@ class MediaSessionManager(private val context: MainActivity) {
 
     /** 获取当前通知栏通知对象（供前台服务使用） */
     fun getCurrentNotification(): Notification? {
-        if (currentTitle.isEmpty()) return null
+        // 修复A2：即使无歌曲信息(currentTitle为空)也返回带播放控制的通知，
+        // 避免前台服务启动早于元数据更新时通知缺少播放/上一首/下一首按钮；标题用应用名"扣扣云"占位
         if (mediaSession?.sessionToken == null) return null
 
         val contentIntent = PendingIntent.getActivity(

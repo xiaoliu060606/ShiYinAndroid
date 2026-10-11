@@ -5,11 +5,21 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONException
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
+
+/** 切歌兜底轮询间隔（毫秒） */
+private const val QIE_GE_LUN_XUN_JIAN_GE = 2000L
+
+/** 切歌兜底最大重试次数 */
+private const val QIE_GE_ZUI_DUO_CHONG_SHI = 2
+
+/** 首次切歌锁超时窗口（与 GeQuQieHuanManager.QIE_GE_CHAO_SHI 对齐，毫秒） */
+private const val QIE_GE_CHAO_SHI_CHUANG_KOU = 15000L
+
+/** JS 回调名合法性校验：只允许标准标识符，防止回调名拼接注入 */
+private val HUI_DIAO_MING_ZHENG_ZE = Regex("^[A-Za-z_$][A-Za-z0-9_$]*$")
 
 /**
  * WebView JavaScript 接口
@@ -58,6 +68,9 @@ class WebAppInterface(
     private val riZhiGuanLiQi = RiZhiGuanLiQi(context)
     private val yinYuanPeiZhi = YinYuanPeiZhi(context)
 
+    // OTA 更新管理器（原生实现，桥接给 H5 设置面板）
+    private val otaGengXinGuanLiQi = OTAGengXinGuanLiQi(context)
+
     init {
         val banBen = try {
             val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -65,12 +78,59 @@ class WebAppInterface(
         } catch (e: Exception) { "未知" }
         val sheBei = "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}"
         RiZhiGuanLiQi.chuShiHua(banBen, sheBei)
+
+        // OTA 下载回调统一切主线程通知 H5（全部带 typeof 守卫，前端未实现时静默跳过）
+        otaGengXinGuanLiQi.huiDiao = object : OTAGengXinGuanLiQi.HuiDiao {
+            override fun onJinDu(baiFenBi: Int) {
+                context.runOnUiThread {
+                    try {
+                        if (context.isFinishing || context.isDestroyed) return@runOnUiThread
+                        context.getWebView().evaluateJavascript(
+                            "javascript:if(typeof onGengXinJinDu==='function') onGengXinJinDu($baiFenBi);",
+                            null
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.w("WebAppInterface", "OTA进度回调失败: ${e.message}")
+                    }
+                }
+            }
+
+            override fun onXiaZaiWanCheng(luJing: String) {
+                context.runOnUiThread {
+                    try {
+                        if (context.isFinishing || context.isDestroyed) return@runOnUiThread
+                        val anQuanLuJing = luJing.replace("\\", "\\\\").replace("'", "\\'")
+                        context.getWebView().evaluateJavascript(
+                            "javascript:if(typeof onGengXinXiaZaiWanCheng==='function') onGengXinXiaZaiWanCheng('$anQuanLuJing');",
+                            null
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.w("WebAppInterface", "OTA下载完成回调失败: ${e.message}")
+                    }
+                }
+            }
+
+            override fun onCuoWu(message: String) {
+                context.runOnUiThread {
+                    try {
+                        if (context.isFinishing || context.isDestroyed) return@runOnUiThread
+                        val anQuanXinXi = message.replace("\\", "\\\\")
+                            .replace("'", "\\'")
+                            .replace("\n", " ")
+                            .replace("\r", "")
+                        context.getWebView().evaluateJavascript(
+                            "javascript:if(typeof onGengXinCuoWu==='function') onGengXinCuoWu('$anQuanXinXi');",
+                            null
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.w("WebAppInterface", "OTA错误回调失败: ${e.message}")
+                    }
+                }
+            }
+        }
     }
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    // 网络请求统一使用 OkHttpDanLi 共享单例（连接池/线程池统一管理）
 
     /**
      * 设置播放模式（从 H5 接收）
@@ -335,7 +395,9 @@ class WebAppInterface(
     @JavascriptInterface
     fun yuanShengQieGe(fangXiang: String): Boolean {
         RiZhiGuanLiQi.logInfo("WebAppInterface", "H5请求原生切歌: $fangXiang")
-        val result = geQuQieHuanManager.qieGe(fangXiang)
+        // 手动切歌时忽略单曲循环模式，用户期望点击下一首就真正切歌
+        // 单曲循环只在歌曲自动播放完成时生效（由onCompletion处理）
+        val result = geQuQieHuanManager.qieGe(fangXiang, huLueBoFangMoShi = true)
         RiZhiGuanLiQi.logInfo("WebAppInterface", "原生切歌结果: $result")
         return result
     }
@@ -348,7 +410,7 @@ class WebAppInterface(
      */
     @JavascriptInterface
     fun nativeSetSongUrl(geQuId: String, url: String, suoYin: Int) {
-        android.util.Log.d("WebAppInterface", "H5回传URL: id=$geQuId, url=$url, index=$suoYin")
+        android.util.Log.d("WebAppInterface", "H5回传URL: id=$geQuId, url=${url.take(60)}..., index=$suoYin")
         geQuQieHuanManager.onH5UrlResponse(geQuId, url, suoYin)
     }
 
@@ -420,17 +482,35 @@ class WebAppInterface(
 
                     override fun onCompletion() {
                         android.util.Log.d("ShiYinSync", "[播放完成] Native→H5: 歌曲播放完成")
-                        
+                        android.util.Log.d("ShiYinSync", "[播放完成] boFangMoShi=${geQuQieHuanManager.huoQuBoFangMoShi()}, dangQianSuoYin=${geQuQieHuanManager.huoQuDangQianSuoYin()}, 列表大小=${geQuQieHuanManager.lieBiaoShiFouKong()}")
+
                         if (dingShiGuanBiManager.shiFouYiSheZhi() && dingShiGuanBiManager.shiFouBoWanZaiTing()) {
                             android.util.Log.d("DingShiGuanBi", "播完当前再停模式，执行定时暂停")
                             geQuQieHuanManager.zhongZhiYuJiaZai()
                             dingShiGuanBiManager.zaiGeQuBoWanShiJianCha()
                             return
                         }
-                        
+
                         if (context.isFinishing || context.isDestroyed) {
                             geQuQieHuanManager.zhongZhiYuJiaZai()
                             mediaSessionManager.notifySongCompletion()
+                            return
+                        }
+                        // 关键修复：随机模式必须走 H5 的 playNextSong()。
+                        // 原生 GeQuQieHuanManager 只有顺序列表，随机模式会按原生列表随机选歌，
+                        // 与 H5 的随机队列不一致会播错歌（参照 MediaSessionManager.onSkipToNext 的既有做法）。
+                        val dangQianMoShi = geQuQieHuanManager.huoQuBoFangMoShi()
+                        if (dangQianMoShi == 2) {
+                            android.util.Log.d("ShiYinSync", "[播放完成] 随机模式，改由 H5 playNextSong 切歌")
+                            context.runOnUiThread {
+                                try {
+                                    context.getWebView().evaluateJavascript(
+                                        "javascript:if(typeof playNextSong==='function') playNextSong();", null
+                                    )
+                                } catch (e: Exception) {
+                                    android.util.Log.w("WebAppInterface", "随机模式H5切歌失败: ${e.message}")
+                                }
+                            }
                             return
                         }
                         // 优先使用原生切歌（预加载缓存还在，不依赖 WebView JS，息屏也能工作）
@@ -452,16 +532,13 @@ class WebAppInterface(
                                 }
                             }
                         }
-                        // 2秒后检查是否已播放，未播放则重试原生切歌（息屏时H5 fallback可能不执行）
-                        handler.postDelayed({
-                            val ctx = contextRef.get()
-                            if (ctx == null || ctx.isFinishing || ctx.isDestroyed) return@postDelayed
-                            val player = nativeAudioPlayer
-                            if (player != null && !player.isPlayingState()) {
-                                android.util.Log.w("WebAppInterface", "[播放完成] 2s后仍未播放，重试原生切歌")
-                                geQuQieHuanManager.qieGe("next")
-                            }
-                        }, 2000)
+                        // 息屏兜底：轮询等待播放启动，未播放且切歌锁必然已释放后才重试。
+                        // 背景：首次 qieGe 持锁到 boFang 或 15s 超时（GeQuQieHuanManager.QIE_GE_CHAO_SHI），
+                        // 锁未释放时重复 qieGe 会被直接忽略（旧的 2s 重试因此基本无效）；
+                        // 且 boFang 后播放器仍在 prepare 期间 isPlayingState 为 false，
+                        // 过早重试会跳过一首歌。因此每 2s 只做检查，重试推迟到首个 15s
+                        // 超时窗口结束（锁已由超时强制释放）之后，保证息屏兜底真实有效。
+                        kaiShiQieGeLunXun()
                     }
 
                     override fun onError(error: String) {
@@ -504,14 +581,14 @@ class WebAppInterface(
                         }
                     }
 
-                    override fun onPlayStateChanged(isPlaying: Boolean) {
-                        android.util.Log.d("ShiYinSync", "[播放状态] Native→H5: $isPlaying")
+                    override fun onPlayStateChanged(isPlaying: Boolean, reason: String) {
+                        android.util.Log.d("ShiYinSync", "[播放状态] Native→H5: $isPlaying, reason=$reason")
                         mediaSessionManager.setPlayStateFromNative(isPlaying)
                         if (context.isFinishing || context.isDestroyed) return
                         context.runOnUiThread {
                             try {
                                 context.getWebView().evaluateJavascript(
-                                    "javascript:onNativePlayStateChanged($isPlaying)",
+                                    "javascript:onNativePlayStateChanged($isPlaying, '$reason')",
                                     null
                                 )
                             } catch (e: Exception) {
@@ -533,6 +610,57 @@ class WebAppInterface(
             e.printStackTrace()
             false
         }
+    }
+
+    /** 切歌兜底轮询任务引用（同一时间只保留一个，避免重复轮询导致跳歌） */
+    private var qieGeLunXunRenWu: Runnable? = null
+
+    /**
+     * 切歌兜底轮询（息屏场景下 H5 兜底可能不执行时保证真实生效）
+     * 契约：每 2s 检查一次播放状态；已播放或播放器已释放则结束；
+     * 未播放且首个 15s 切歌超时窗口已结束（切歌锁必已被超时强制释放）时才重试 qieGe，
+     * 最多重试 QIE_GE_ZUI_DUO_CHONG_SHI 次，每次重试后同样等待一个完整超时窗口，
+     * 避免锁未释放时的无效重试，也避免播放器 prepare 期间误重试导致跳歌。
+     */
+    private fun kaiShiQieGeLunXun() {
+        qieGeLunXunRenWu?.let { handler.removeCallbacks(it) }
+        var chongShiCiShu = 0
+        var xiaYiCiChongShiShiJian = System.currentTimeMillis() + QIE_GE_CHAO_SHI_CHUANG_KOU + 1000L
+        val renWu = object : Runnable {
+            override fun run() {
+                val ctx = contextRef.get()
+                if (ctx == null || ctx.isFinishing || ctx.isDestroyed) {
+                    qieGeLunXunRenWu = null
+                    return
+                }
+                val player = nativeAudioPlayer
+                if (player == null) {
+                    // 原生播放器已释放，原生切歌无从执行，只能依赖 H5
+                    qieGeLunXunRenWu = null
+                    return
+                }
+                if (player.isPlayingState()) {
+                    android.util.Log.d("WebAppInterface", "[播放完成] 兜底轮询：已开始播放，结束轮询")
+                    qieGeLunXunRenWu = null
+                    return
+                }
+                val now = System.currentTimeMillis()
+                if (chongShiCiShu >= QIE_GE_ZUI_DUO_CHONG_SHI && now >= xiaYiCiChongShiShiJian) {
+                    android.util.Log.w("WebAppInterface", "[播放完成] 兜底重试${QIE_GE_ZUI_DUO_CHONG_SHI}次仍未播放，放弃")
+                    qieGeLunXunRenWu = null
+                    return
+                }
+                if (now >= xiaYiCiChongShiShiJian) {
+                    chongShiCiShu++
+                    xiaYiCiChongShiShiJian = now + QIE_GE_CHAO_SHI_CHUANG_KOU + 1000L
+                    android.util.Log.w("WebAppInterface", "[播放完成] 兜底第${chongShiCiShu}次重试原生切歌")
+                    geQuQieHuanManager.qieGe("next")
+                }
+                handler.postDelayed(this, QIE_GE_LUN_XUN_JIAN_GE)
+            }
+        }
+        qieGeLunXunRenWu = renWu
+        handler.postDelayed(renWu, QIE_GE_LUN_XUN_JIAN_GE)
     }
 
     /**
@@ -804,10 +932,11 @@ class WebAppInterface(
                 .url(url)
                 .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .addHeader("Accept", "application/json")
-                .addHeader("Referer", try { val u = java.net.URI(searchApiUrl); "${u.scheme}://${u.host}/" } catch (_: Exception) { "https://apicx.asia/" })
+                // Referer 从配置 URL 派生；解析失败时留空，不硬编码任何域名
+                .addHeader("Referer", try { val u = java.net.URI(searchApiUrl); "${u.scheme}://${u.host}/" } catch (_: Exception) { "" })
                 .build()
 
-            httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+            OkHttpDanLi.keHuDuan.newCall(request).enqueue(object : okhttp3.Callback {
                 override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                     android.util.Log.e("WebAppInterface", "搜索失败: ${e.message}")
                     val errorResult = "{\"code\":-1,\"msg\":\"${e.message?.replace("'", "\\'")}\",\"data\":[]}"
@@ -832,6 +961,60 @@ class WebAppInterface(
         } catch (e: Exception) {
             android.util.Log.e("WebAppInterface", "搜索异常: ${e.message}")
             val errorResult = "{\"code\":-1,\"msg\":\"${e.message?.replace("'", "\\'")}\",\"data\":[]}"
+            invokeJsCallback(callback, errorResult)
+        }
+    }
+
+    /**
+     * 原生QQ音乐搜索（异步版本，作为JS侧axios搜索的兜底）
+     * 当 window.__QQMUSIC_API_TOKEN__ 未及时注入时，JS侧axios路径不可用，
+     * 此方法提供原生HTTP请求绕过CORS限制，确保QQ音乐搜索始终可用
+     * @param keyword 搜索关键词
+     * @param callback JS回调函数名
+     */
+    @JavascriptInterface
+    fun nativeSearchQqmusicAsync(keyword: String, callback: String) {
+        android.util.Log.d("WebAppInterface", "[QQ搜索] 原生搜索: keyword=$keyword, callback=$callback")
+        RiZhiGuanLiQi.logInfo("WebAppInterface", "[QQ搜索] 原生搜索: keyword=$keyword")
+
+        try {
+            val souSuoUrl = yinYuanPeiZhi.huoQuQqmusicSouSuoUrl(keyword)
+            if (souSuoUrl.isEmpty()) {
+                val errorResult = "{\"code\":-1,\"msg\":\"QQ音乐API URL未配置\"}"
+                invokeJsCallback(callback, errorResult)
+                return
+            }
+
+            val request = Request.Builder()
+                .url(souSuoUrl)
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .addHeader("Accept", "application/json")
+                .build()
+
+            OkHttpDanLi.keHuDuan.newCall(request).enqueue(object : okhttp3.Callback {
+                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                    android.util.Log.e("WebAppInterface", "[QQ搜索] 原生搜索失败: ${e.message}")
+                    val errorResult = "{\"code\":-1,\"msg\":\"QQ音乐搜索请求失败: ${e.message?.replace("\"", "\\\"")?.replace("\n", " ") ?: "未知错误"}\"}"
+                    invokeJsCallback(callback, errorResult)
+                }
+
+                override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                    response.use {
+                        val body = response.body?.string()
+                        if (response.isSuccessful && body != null) {
+                            android.util.Log.d("WebAppInterface", "[QQ搜索] 原生搜索成功，返回 ${body.length} 字符")
+                            invokeJsCallback(callback, body)
+                        } else {
+                            android.util.Log.e("WebAppInterface", "[QQ搜索] 原生搜索HTTP ${response.code}")
+                            val errorResult = "{\"code\":-1,\"msg\":\"QQ音乐搜索HTTP ${response.code}\"}"
+                            invokeJsCallback(callback, errorResult)
+                        }
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            android.util.Log.e("WebAppInterface", "[QQ搜索] 原生搜索异常: ${e.message}")
+            val errorResult = "{\"code\":-1,\"msg\":\"QQ音乐搜索异常: ${e.message?.replace("\"", "\\\"")?.replace("\n", " ") ?: "未知错误"}\"}"
             invokeJsCallback(callback, errorResult)
         }
     }
@@ -949,14 +1132,15 @@ class WebAppInterface(
         if (geQuLaiYuan == "qq") {
             qingQiuQqmusicSouSuo(searchName, songId, callback)
         } else {
-            qingQiuCenguiguiAPI(songId, callback)
+            // 网易云歌曲：云智API（songId直查URL），apicx只做搜索和歌词不提供播放地址
+            qingQiuYunzhiAPI(searchName, songId, callback)
         }
     }
 
     /** apicx 搜索（第一步） */
     private fun qingQiuApicxSouSuo(geQuMing: String, songId: String, callback: String) {
         val souSuoUrl = yinYuanPeiZhi.huoQuApicxSouSuoUrl(geQuMing)
-        android.util.Log.d("WebAppInterface", "[API追踪] apicx搜索: $souSuoUrl")
+        android.util.Log.d("WebAppInterface", "[API追踪] apicx搜索: ${ApiPeiZhiDanLi.daMaUrl(souSuoUrl)}")
         RiZhiGuanLiQi.logInfo("WebAppInterface", "[apicx搜索] 歌名=$geQuMing, songId=$songId")
 
         val request = Request.Builder()
@@ -965,7 +1149,7 @@ class WebAppInterface(
             .addHeader("Accept", "application/json")
             .build()
 
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+        OkHttpDanLi.keHuDuan.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 android.util.Log.e("WebAppInterface", "[原生通道] apicx搜索失败: ${e.message}")
                 RiZhiGuanLiQi.logWarn("WebAppInterface", "[apicx搜索] 网络失败: ${e.message}")
@@ -1033,7 +1217,7 @@ class WebAppInterface(
             .addHeader("Accept", "application/json")
             .build()
 
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+        OkHttpDanLi.keHuDuan.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 RiZhiGuanLiQi.logWarn("WebAppInterface", "[apicx详情] 网络失败: ${e.message}")
                 invokeJsCallback(callback, "{\"code\":-1,\"msg\":\"apicx详情失败: ${e.message?.replace("'", "\\'")}\"}")
@@ -1048,7 +1232,7 @@ class WebAppInterface(
                             if (json.optInt("code", -1) == 200) {
                                 val dataObj = json.optJSONObject("data")
                                 if (dataObj != null && (dataObj.optJSONObject("song") != null || dataObj.has("url"))) {
-                                    // 修复: 验证URL是否有效，空URL降级到云智
+                                    // 修复: 验证URL是否有效，空URL直接报错（不再降级云智，防止循环）
                                     val url = dataObj.optString("url", "")
                                     if (url.isNotEmpty() && url.length >= 10 && (url.startsWith("https://") || url.startsWith("http://"))) {
                                         android.util.Log.d("WebAppInterface", "[原生通道] ✓ apicx成功")
@@ -1056,10 +1240,9 @@ class WebAppInterface(
                                         invokeJsCallback(callback, body)
                                         return
                                     } else {
-                                        android.util.Log.w("WebAppInterface", "[apicx详情] URL为空或无效，降级到云智: songId=$songId")
-                                        RiZhiGuanLiQi.logWarn("WebAppInterface", "[apicx详情] URL无效，降级云智")
-                                        // 降级到云智API
-                                        qingQiuCenguiguiAPI(songId, callback)
+                                        android.util.Log.w("WebAppInterface", "[apicx详情] URL为空或无效，songId=$songId")
+                                        RiZhiGuanLiQi.logWarn("WebAppInterface", "[apicx详情] URL无效")
+                                        invokeJsCallback(callback, "{\"code\":-1,\"msg\":\"apicx返回URL为空\"}")
                                         return
                                     }
                                 }
@@ -1078,9 +1261,9 @@ class WebAppInterface(
 
     /** QQ音乐搜索+详情（一步到位，通过歌名获取播放地址） */
     private fun qingQiuQqmusicSouSuo(geQuMing: String, songId: String, callback: String) {
-        // 使用n=1取第一个匹配结果
-        val souSuoUrl = yinYuanPeiZhi.huoQuQqmusicDetailUrl(geQuMing, 1)
-        android.util.Log.d("WebAppInterface", "[QQ音乐] 搜索: $souSuoUrl")
+        // 传递songId作为&id=参数实现同名歌曲精确匹配
+        val souSuoUrl = yinYuanPeiZhi.huoQuQqmusicDetailUrl(geQuMing, 1, songId)
+        android.util.Log.d("WebAppInterface", "[QQ音乐] 搜索: ${ApiPeiZhiDanLi.daMaUrl(souSuoUrl)}")
         RiZhiGuanLiQi.logInfo("WebAppInterface", "[QQ音乐] 搜索: 歌名=$geQuMing, songId=$songId")
 
         val request = Request.Builder()
@@ -1089,7 +1272,7 @@ class WebAppInterface(
             .addHeader("Accept", "application/json")
             .build()
 
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+        OkHttpDanLi.keHuDuan.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 android.util.Log.e("WebAppInterface", "[QQ音乐] 失败: ${e.message}")
                 RiZhiGuanLiQi.logWarn("WebAppInterface", "[QQ音乐] 网络失败: ${e.message}")
@@ -1155,10 +1338,10 @@ class WebAppInterface(
         })
     }
 
-    /** 云智API请求（通过歌曲ID直接获取） */
-    private fun qingQiuCenguiguiAPI(songId: String, callback: String) {
+    /** 云智API请求（通过歌曲ID直接获取播放URL），apicx不提供播放地址所以不设fallback */
+    private fun qingQiuYunzhiAPI(geQuMing: String, songId: String, callback: String) {
         val apiUrl = yinYuanPeiZhi.huoQuYunzhiUrl(songId)
-        android.util.Log.d("WebAppInterface", "[API追踪] 云智API: $apiUrl")
+        android.util.Log.d("WebAppInterface", "[API追踪] 云智API: ${ApiPeiZhiDanLi.daMaUrl(apiUrl)}")
 
         val request = Request.Builder()
             .url(apiUrl)
@@ -1166,7 +1349,7 @@ class WebAppInterface(
             .addHeader("Accept", "application/json")
             .build()
 
-        httpClient.newCall(request).enqueue(object : okhttp3.Callback {
+        OkHttpDanLi.keHuDuan.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 android.util.Log.e("WebAppInterface", "[原生通道] 云智API失败: ${e.message}")
                 invokeJsCallback(callback, "{\"code\":-1,\"msg\":\"云智API失败: ${e.message?.replace("'", "\\'")}\"}")
@@ -1231,6 +1414,13 @@ class WebAppInterface(
      */
     private fun invokeJsCallback(callback: String, result: String) {
         try {
+            // 安全校验：JS 传入的回调名会直接拼接进 evaluateJavascript，
+            // 必须匹配标准标识符，非法名直接拦截并记日志
+            if (!HUI_DIAO_MING_ZHENG_ZE.matches(callback)) {
+                android.util.Log.w("WebAppInterface", "[API追踪] 非法JS回调名，已拦截: ${callback.take(50)}")
+                RiZhiGuanLiQi.logWarn("WebAppInterface", "[JS回调] 非法回调名，已拦截")
+                return
+            }
             if (context.isFinishing || context.isDestroyed) return
             android.util.Log.d("WebAppInterface", "[API追踪] invokeJsCallback: callback=$callback, result前200字符=${result.take(200)}")
             RiZhiGuanLiQi.logDebug("WebAppInterface", "[JS回调] callback=$callback, 结果前100=${result.take(100)}")
@@ -1262,6 +1452,9 @@ class WebAppInterface(
     fun nativeGetLyricAsync(songId: String, callback: String) {
         geCiHuanCun.huoQuGeCiFromAPI(songId) { chengGong, result ->
             if (chengGong && result != null) {
+                invokeJsCallback(callback, result)
+            } else if (result != null) {
+                // GeCiHuanCun 返回了错误JSON，透传给JS侧做兜底
                 invokeJsCallback(callback, result)
             } else {
                 val errorResult = "{\"code\":-1,\"msg\":\"歌词获取失败\"}"
@@ -1373,18 +1566,20 @@ class WebAppInterface(
         }
     }
 
-    /** 通知H5播放状态变化（通知栏操作后同步UI） */
-    fun tongZhiH5BoFangZhuangTaiBianHua(shiFouBoFang: Boolean) {
+    /** 通知H5播放状态变化（通知栏操作后同步UI）
+     *  reason: "paused"=主动暂停(用于H5切歌兜底判断), ""=未知/播放
+     */
+    fun tongZhiH5BoFangZhuangTaiBianHua(shiFouBoFang: Boolean, reason: String = "") {
         try {
             if (context.isFinishing || context.isDestroyed) return
             context.getWebView().post {
                 if (context.isFinishing || context.isDestroyed) return@post
                 context.getWebView().evaluateJavascript(
-                    "javascript:if(typeof onNativePlayStateChanged==='function') onNativePlayStateChanged($shiFouBoFang);",
+                    "javascript:if(typeof onNativePlayStateChanged==='function') onNativePlayStateChanged($shiFouBoFang, '$reason');",
                     null
                 )
             }
-            android.util.Log.d("ShiYinSync", "[播放状态] Native→H5: $shiFouBoFang")
+            android.util.Log.d("ShiYinSync", "[播放状态] Native→H5: $shiFouBoFang, reason=$reason")
         } catch (e: Exception) {
             android.util.Log.e("ShiYinSync", "通知H5播放状态失败: ${e.message}")
         }
@@ -1454,6 +1649,67 @@ class WebAppInterface(
         return """{"enabled":$yiSheZhi,"remainingSeconds":$shengYu}"""
     }
 
+    // ==================== OTA 更新接口 ====================
+
+    /**
+     * 检查更新（同步返回 JSON 字符串）
+     * 有更新：{"hasUpdate":true,"versionName":"x.y","versionCode":N,"changelog":"...","downloadUrl":"...","fileSize":N,"forceUpdate":false}
+     * 无更新：{"hasUpdate":false,"currentVersion":"x.y"}
+     * 失败：{"error":"检查更新失败，请稍后重试"}
+     */
+    @JavascriptInterface
+    fun jianChaGengXin(): String {
+        return try {
+            otaGengXinGuanLiQi.jianChaGengXin()
+        } catch (e: Exception) {
+            android.util.Log.e("WebAppInterface", "检查更新异常: ${e.message}")
+            """{"error":"检查更新失败，请稍后重试"}"""
+        }
+    }
+
+    /**
+     * 开始下载更新包（异步，进度经 onGengXinJinDu 回调）
+     * @return true=下载已启动；false=已有下载在进行中或地址无效
+     */
+    @JavascriptInterface
+    fun kaiShiXiaZaiGengXin(downloadUrl: String): Boolean {
+        return try {
+            otaGengXinGuanLiQi.kaiShiXiaZai(downloadUrl)
+        } catch (e: Exception) {
+            android.util.Log.e("WebAppInterface", "启动OTA下载异常: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * 取消更新下载（断开连接并删除半成品）
+     * @return true=已取消；false=当前没有进行中的下载
+     */
+    @JavascriptInterface
+    fun quXiaoXiaZaiGengXin(): Boolean {
+        return try {
+            otaGengXinGuanLiQi.quXiaoXiaZai()
+        } catch (e: Exception) {
+            android.util.Log.e("WebAppInterface", "取消OTA下载异常: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * 安装已下载的更新包
+     * 无"安装未知应用"权限时先跳系统设置页（ACTION_MANAGE_UNKNOWN_APP_SOURCES）再返回 false
+     * @return true=已调起系统安装；false=无权限或失败
+     */
+    @JavascriptInterface
+    fun anZhuangGengXinBao(filePath: String): Boolean {
+        return try {
+            otaGengXinGuanLiQi.anZhuang(filePath)
+        } catch (e: Exception) {
+            android.util.Log.e("WebAppInterface", "安装更新包异常: ${e.message}")
+            false
+        }
+    }
+
     // ==================== 日志导出接口 ====================
 
     /**
@@ -1487,7 +1743,15 @@ class WebAppInterface(
     /** 清理Handler回调，防止内存泄漏 */
     fun qingLi() {
         handler.removeCallbacksAndMessages(null)
+        qieGeLunXunRenWu = null
         dingShiGuanBiManager.wanQuanQingLi()
+        // 取消进行中的 OTA 下载并解除回调，避免下载线程持有已销毁的 Activity 引用
+        try {
+            otaGengXinGuanLiQi.huiDiao = null
+            otaGengXinGuanLiQi.quXiaoXiaZai()
+        } catch (e: Exception) {
+            android.util.Log.w("WebAppInterface", "清理OTA下载失败: ${e.message}")
+        }
     }
 
     /** 查询Native端当前播放状态（供H5主动同步） */
@@ -1694,9 +1958,10 @@ class WebAppInterface(
             }
             context.xuanFuGeCiManager.kaiQi()
             // 开启后主动请求H5推送当前歌词（如果有缓存则立即显示，如果没有则加载）
+            // 关键修复：必须设置 xuanFuGeCiYiKaiQi=true，否则 shouldLoadLyrics() 返回 false 导致歌词不加载
             try {
                 context.getWebView().evaluateJavascript(
-                    "try{if(typeof sendLyricData==='function'&&typeof lyrics!=='undefined'&&Array.isArray(lyrics)&&lyrics.length>0){sendLyricData(lyrics)}else{console.log('[AndroidBridge] 悬浮窗已开启，但当前无歌词数据')}}catch(e){console.error('[AndroidBridge] 请求歌词失败',e)}", null
+                    "try{window.xuanFuGeCiYiKaiQi=true;console.log('[AndroidBridge] 悬浮窗已开启，设置 xuanFuGeCiYiKaiQi=true');if(typeof sendLyricData==='function'&&typeof lyrics!=='undefined'&&Array.isArray(lyrics)&&lyrics.length>0){sendLyricData(lyrics)}else{console.log('[AndroidBridge] 请求加载歌词');if(typeof loadLyricsForCurrentSong==='function')loadLyricsForCurrentSong();}}catch(e){console.error('[AndroidBridge] 请求歌词失败',e)}", null
                 )
             } catch (e: Exception) {
                 android.util.Log.e("WebAppInterface", "请求H5推送歌词失败: ${e.message}")

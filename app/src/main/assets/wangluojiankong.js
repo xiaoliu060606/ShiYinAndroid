@@ -62,8 +62,8 @@ function initNetworkMonitoring() {
     window.addEventListener('online', handleNetworkOnline);
     window.addEventListener('offline', handleNetworkOffline);
 
-    // 定期检查网络质量
-    setInterval(checkNetworkQuality, QUALITY_CHECK_INTERVAL);
+    // 定期检查网络质量（句柄存入全局 networkQualityTimer，供 cleanupAllTimers 统一清理，防内存泄漏）
+    networkQualityTimer = setInterval(checkNetworkQuality, QUALITY_CHECK_INTERVAL);
 
     // 初始化网络质量
     checkNetworkQuality();
@@ -151,17 +151,21 @@ function checkNetworkQuality() {
         } else {
             networkQuality = 'poor';
         }
-    } else if (typeof AndroidBridge !== 'undefined' && AndroidBridge.wangLuoShiFouKeYong) {
-        const effectiveType = AndroidBridge.wangLuoShiFouKeYong();
-        // 简单根据连接类型评估质量
-        if (effectiveType === 'wifi' || effectiveType === '4g' || effectiveType === '5g') {
+    } else if (typeof navigator !== 'undefined' && navigator.connection && navigator.connection.effectiveType) {
+        // 注意：AndroidBridge.wangLuoShiFouKeYong() 返回的是布尔值（网络是否可用），
+        // 旧代码把它当作连接类型字符串与 'wifi'/'4g'/'5g' 比较，永远不匹配，
+        // 导致每次都退化到 estimateNetworkQuality() 打探测请求。
+        // 连接类型统一从标准 Network Information API 读取（effectiveType 取值：
+        // slow-2g / 2g / 3g / 4g，没有 wifi/5g），读不到时再走探测估算。
+        const effectiveType = navigator.connection.effectiveType;
+        if (effectiveType === '4g') {
             networkQuality = 'excellent';
         } else if (effectiveType === '3g') {
             networkQuality = 'good';
-        } else if (effectiveType === '2g') {
+        } else if (effectiveType === '2g' || effectiveType === 'slow-2g') {
             networkQuality = 'fair';
         } else {
-            // 没有connection API，我们尝试通过快速请求估算网络质量
+            // 没有可识别的连接类型，尝试通过快速请求估算网络质量
             estimateNetworkQuality();
         }
     } else {
@@ -454,7 +458,10 @@ function handleNetworkOffline() {
                     if (nativeCachePath && nativeCachePath.length > 0) {
                         hasCache = { url: nativeCachePath, type: 'native' };
                     }
-                } catch(e) {}
+                } catch(e) {
+                    // 查询原生缓存路径失败时按无缓存处理，继续后续流程
+                    console.warn('查询原生音频缓存路径失败:', e);
+                }
             }
             if (!hasCache && typeof getSongCacheFromStorage === 'function') {
                 var urlCache = getSongCacheFromStorage(currentSongId);

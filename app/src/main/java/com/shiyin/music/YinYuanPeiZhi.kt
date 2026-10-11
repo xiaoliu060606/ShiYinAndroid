@@ -70,7 +70,7 @@ class YinYuanPeiZhi(context: Context) {
     }
 
     /**
-     * 获取 apicx.asia API搜索URL（用歌名搜索，返回歌曲列表）
+     * 获取搜索API搜索URL（用歌名搜索，返回歌曲列表）
      */
     fun huoQuApicxSouSuoUrl(geQuMing: String): String {
         jiaZaiPeiZhi()
@@ -83,7 +83,7 @@ class YinYuanPeiZhi(context: Context) {
     }
 
     /**
-     * 获取 apicx.asia API详情URL
+     * 获取搜索API详情URL
      * @param geQuMing 歌曲名
      * @param n 歌曲在列表中的序号（n字段值）
      */
@@ -115,15 +115,20 @@ class YinYuanPeiZhi(context: Context) {
      * 获取QQ音乐详情URL（通过歌名+序号获取播放地址）
      * @param geQuMing 歌曲名
      * @param n 序号（1-20）
+     * @param songId 歌曲ID（可选，用于精确匹配同名歌曲）
      */
-    fun huoQuQqmusicDetailUrl(geQuMing: String, n: Int): String {
+    fun huoQuQqmusicDetailUrl(geQuMing: String, n: Int, songId: String = ""): String {
         jiaZaiPeiZhi()
         if (qqmusicApiUrl.isEmpty()) {
             android.util.Log.e("YinYuanPeiZhi", "QQ音乐API URL未配置，无法构建请求")
             return ""
         }
         val encodedName = java.net.URLEncoder.encode(geQuMing, "UTF-8")
-        return "$qqmusicApiUrl?msg=$encodedName&n=$n&token=$qqmusicApiToken"
+        val urlBuilder = StringBuilder("$qqmusicApiUrl?msg=$encodedName&n=$n&token=$qqmusicApiToken")
+        if (songId.isNotEmpty()) {
+            urlBuilder.append("&id=").append(java.net.URLEncoder.encode(songId, "UTF-8"))
+        }
+        return urlBuilder.toString()
     }
 
     /**

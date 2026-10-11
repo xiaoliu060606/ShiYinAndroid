@@ -1,18 +1,19 @@
 {
   "lyric_api": {
-    "url": "https://your-api-domain.com/api/lyric",
-    "token": "YOUR_TOKEN_HERE"
+    "url": "在此填写歌词API地址",
+    "token": "在此填写歌词API令牌"
   },
   "search_api": {
-    "url": "https://your-api-domain.com/api/search",
-    "token": "YOUR_TOKEN_HERE"
+    "url": "在此填写搜索API地址",
+    "token": "在此填写搜索API令牌"
   },
   "yunzhi_api": {
-    "url": "https://your-api-domain.com/API/endpoint",
-    "token": "YOUR_TOKEN_HERE"
+    "url": "在此填写云智API地址",
+    "token": "在此填写云智API令牌"
   },
-  "cenguigui_cn_api": {
-    "url": "https://your-api-domain.com/api/music",
-    "token": ""
-  }
+  "qqmusic_api": {
+    "url": "在此填写QQ音乐API地址",
+    "token": "在此填写QQ音乐API令牌"
+  },
+  "ota_url": "在此填写OTA更新检查地址，留空则使用GitHub releases兜底"
 }

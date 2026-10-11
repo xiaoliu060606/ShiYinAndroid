@@ -267,14 +267,6 @@ function notifyNativeSongInfo() {
     }
 }
 
-// 更新系统通知栏状态
-function updateNotificationStatus(status, songName, artistName) {
-    if (window.AndroidBridge && typeof window.AndroidBridge.updateNotificationStatus === 'function') {
-        window.AndroidBridge.updateNotificationStatus(status, songName, artistName);
-        console.log("已更新通知栏状态:", status, songName, artistName);
-    }
-}
-
 // ==================== 移动端错误处理 ====================
 
 // 移动端音频错误处理

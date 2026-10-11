@@ -2,12 +2,10 @@ package com.shiyin.music
 
 import android.content.Context
 import android.util.Log
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 
 class GeCiHuanCun(private val context: Context) {
 
@@ -20,10 +18,8 @@ class GeCiHuanCun(private val context: Context) {
         private const val SHANG_CI_QING_LI_PIAN_HAO = "ge_ci_shang_ci_qing_li"
     }
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    // 全项目共享 OkHttp 单例（连接池/线程池统一，见 OkHttpDanLi）
+    private val httpClient = OkHttpDanLi.keHuDuan
 
     private val huanCunMuLu = File(context.cacheDir, HUAN_CUN_MU_LU_NAME)
     private val sharedPreferences = context.getSharedPreferences("ge_ci_huan_cun_pei_zhi", Context.MODE_PRIVATE)
@@ -55,7 +51,7 @@ class GeCiHuanCun(private val context: Context) {
             if (lyricApiToken.startsWith("<TBD")) {
                 Log.e(TAG, "歌词API token 未配置（仍为占位符），请求将被拒绝")
             }
-            Log.d(TAG, "歌词API配置加载: url=$lyricApiUrl, tokenConfigured=${lyricApiToken.isNotEmpty() && !lyricApiToken.startsWith("<TBD")}")
+            Log.d(TAG, "歌词API配置加载: url=${ApiPeiZhiDanLi.daMaUrl(lyricApiUrl)}, tokenConfigured=${lyricApiToken.isNotEmpty()}")
         } catch (e: Exception) {
             Log.e(TAG, "加载API配置失败: ${e.message}")
         }
@@ -137,7 +133,9 @@ class GeCiHuanCun(private val context: Context) {
 
         if (lyricApiUrl.isBlank() || lyricApiToken.isBlank() || lyricApiToken.startsWith("<TBD")) {
             Log.e(TAG, "歌词API未配置或token为占位符，跳过请求: id=$geQuId")
-            huiDiao(false, null)
+            // 返回错误详情供JS侧诊断
+            val cuoWuXiangXi = """{"code":-1,"msg":"歌词API未配置或token为占位符，请在api_config.json中配置"}"""
+            huiDiao(false, cuoWuXiangXi)
             return
         }
 
@@ -151,7 +149,9 @@ class GeCiHuanCun(private val context: Context) {
         httpClient.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 Log.e(TAG, "歌词API请求失败: ${e.message}")
-                huiDiao(false, null)
+                val escapedMsg = e.message?.replace("\\", "\\\\")?.replace("\"", "\\\"")?.replace("\n", " ") ?: "未知错误"
+                val cuoWu = """{"code":-1,"msg":"歌词API请求失败: $escapedMsg"}"""
+                huiDiao(false, cuoWu)
             }
 
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
@@ -181,12 +181,21 @@ class GeCiHuanCun(private val context: Context) {
                                 baoCunGeCi(geQuId, resultStr)
                                 huiDiao(true, resultStr)
                                 return
+                            } else {
+                                val apiMsg = json.optString("msg", "歌词API返回异常")
+                                val escapedMsg = apiMsg.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ")
+                                val cuoWu = """{"code":-1,"msg":"歌词API返回: $escapedMsg"}"""
+                                huiDiao(false, cuoWu)
+                                return
                             }
                         }
-                        huiDiao(false, null)
+                        val cuoWu = """{"code":-1,"msg":"歌词API HTTP ${response.code}"}"""
+                        huiDiao(false, cuoWu)
                     } catch (e: Exception) {
                         Log.e(TAG, "歌词API解析失败: ${e.message}")
-                        huiDiao(false, null)
+                        val escapedMsg = e.message?.replace("\\", "\\\\")?.replace("\"", "\\\"")?.replace("\n", " ") ?: "未知错误"
+                        val cuoWu = """{"code":-1,"msg":"歌词API解析失败: $escapedMsg"}"""
+                        huiDiao(false, cuoWu)
                     }
                 }
             }

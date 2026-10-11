@@ -21,6 +21,9 @@ const CACHE_CONFIG = {
 // cleanupExpiredCacheTimer, networkQualityTimer 均在HTML主script中声明
 
 // 清理所有定时器（防止内存泄漏）
+// 注意：zhuangTaiBaoCunDingShiQi 是拾音.html 内联脚本以 let 声明的全局词法绑定
+// （30秒播放状态保存定时器），加载顺序上先于本文件执行，此处可直接引用；
+// android-bridge.js 内部的 10 秒状态保存定时器通过 window.tingZhiZhuangTaiBaoCun 停止。
 function cleanupAllTimers() {
     console.log('清理所有定时器...');
     clearInterval(backgroundStateCheckInterval);
@@ -28,6 +31,10 @@ function cleanupAllTimers() {
     clearInterval(networkQualityTimer);
     clearInterval(progressUpdateInterval);
     clearInterval(mediaSessionSyncInterval);
+    clearInterval(zhuangTaiBaoCunDingShiQi);
+    if (typeof tingZhiZhuangTaiBaoCun === 'function') {
+        tingZhiZhuangTaiBaoCun();
+    }
     clearTimeout(retryTimeout);
     clearTimeout(lyricRetryTimeout);
     clearTimeout(touchTimer);
@@ -99,6 +106,16 @@ function refreshExpiredCache(songId) {
 
         const currentSongInfo = typeof playlistData !== 'undefined' ? playlistData.find(s => s.id === songId) : null;
         const songName = currentSongInfo ? currentSongInfo.name : '';
+
+        // 纯Web环境未经原生注入API配置时 getApiUrl 返回 null，给出中文提示后中止刷新
+        if (typeof apiShiFouKeYong === 'function' && !apiShiFouKeYong()) {
+            console.error(`[API] API服务未配置（仅App内可用），无法刷新歌曲 ${songId} 的过期缓存`);
+            if (typeof showToast === 'function') {
+                showToast('当前环境未配置音乐API，仅App内可用', 'warning', 3000);
+            }
+            return;
+        }
+
         const apiUrl = typeof getApiUrl === 'function' ? getApiUrl(songId, 'exhigh', songName) : null;
 
         if (!apiUrl) {

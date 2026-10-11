@@ -459,8 +459,8 @@
         }
 
         .info-panel {
-            margin-top: 30px;
-            padding: 20px;
+            margin-top: 12px;
+            padding: 12px 16px;
             background: rgba(0, 0, 0, 0.4);
             border-radius: 20px;
             backdrop-filter: blur(10px);
@@ -468,13 +468,11 @@
             width: 100%;
             box-sizing: border-box;
             overflow: hidden;
-            transform: translateY(50px);
-            transition: all 0.8s ease-in-out;
             opacity: 0;
             pointer-events: none;
             position: relative;
             min-height: 130px;
-            transition: all 0.5s ease;
+            transition: opacity 0.5s ease;
         }
 
         .mode-toggle {
@@ -824,107 +822,66 @@
             text-align: center;
         }
 
-        /* 定时关闭弹窗 - 与播放列表面板风格一致 */
+        /* ==================== 定时关闭弹窗（统一为面板风格） ==================== */
         .ding-shi-tan-chuang {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.15);
-            z-index: 9999;
+            position: absolute;
+            top: 45%;
+            left: calc(50% + 210px + 40px);
+            transform: translateY(-50%) scale(0.9);
+            width: 280px;
+            max-height: 420px;
+            border-radius: 24px;
+            z-index: 999;
             opacity: 0;
             visibility: hidden;
-            transition:
-                opacity 0.3s ease,
-                visibility 0s linear 0.3s;
-            align-items: center;
-            justify-content: center;
-            display: flex;
-        }
-
-        .ding-shi-tan-chuang.xian-shi {
-            opacity: 1;
-            visibility: visible;
-            transition-delay: 0s;
-        }
-
-        .ding-shi-tan-chuang-nei-rong {
-            position: relative;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            padding: 24px;
-            width: 260px;
-            max-width: 90vw;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            opacity: 0;
-            transform: scale(0.9);
-            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none;
         }
-
-        .ding-shi-tan-chuang.xian-shi .ding-shi-tan-chuang-nei-rong {
+        .ding-shi-tan-chuang.xian-shi {
             opacity: 1;
-            transform: scale(1);
-        }
-
-        .ding-shi-biao-ti {
-            font-size: 16px;
-            font-weight: 600;
-            color: #fff;
-            padding-bottom: 12px;
-            flex-shrink: 0;
-        }
-
-        .ding-shi-fen-ge-xian {
-            height: 1px;
-            background: rgba(255, 255, 255, 0.1);
-            margin: 0 0 12px 0;
-            flex-shrink: 0;
+            visibility: visible;
+            transform: translateY(-50%) scale(1);
+            pointer-events: auto;
         }
 
         .ding-shi-lie-biao {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 4px 0;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 8px;
+            gap: 6px;
         }
 
         .ding-shi-lie-biao-xiang {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 12px 8px;
+            padding: 11px 12px;
             border-radius: 10px;
             cursor: pointer;
-            transition: all 0.25s ease;
+            transition: all 0.2s ease;
             background: rgba(255, 255, 255, 0.06);
+            font-size: 14px;
+            color: #fff;
+            text-align: center;
+            user-select: none;
         }
 
         .ding-shi-lie-biao-xiang:hover {
             background: rgba(255, 255, 255, 0.1);
         }
 
+        .ding-shi-lie-biao-xiang:active {
+            transform: scale(0.97);
+        }
+
         .ding-shi-lie-biao-xiang.xuan-zhong {
             background: linear-gradient(135deg, rgba(255, 152, 0, 0.25), rgba(255, 193, 7, 0.2));
             box-shadow: 0 4px 15px rgba(255, 152, 0, 0.15);
-        }
-
-        .ding-shi-lie-biao-xiang-wen-zi {
-            font-size: 14px;
-            font-weight: 500;
-            color: #fff;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-align: center;
-            width: 100%;
-        }
-
-        .ding-shi-lie-biao-xiang.xuan-zhong .ding-shi-lie-biao-xiang-wen-zi {
             color: #ff9800;
         }
 
@@ -1294,6 +1251,24 @@
 
         .settings-item:hover .settings-item-arrow i {
             color: rgba(255, 255, 255, 0.45);
+        }
+
+        .settings-item-value {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            flex-shrink: 0;
+            margin-right: 2px;
+            line-height: 1.3;
+        }
+
+        .settings-item.disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        .settings-item.disabled:active {
+            transform: none;
+            background: rgba(255, 255, 255, 0.06);
         }
 
 /* 开关按钮样式 */
@@ -2851,6 +2826,21 @@
                 transform: translate(-50%, -50%) scale(1);
             }
 
+            /* 移动端定时关闭弹窗居中 */
+            .ding-shi-tan-chuang {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                width: 300px;
+                max-height: 70vh;
+                transform: translate(-50%, -50%) scale(0.9);
+                z-index: 999 !important;
+            }
+
+            .ding-shi-tan-chuang.xian-shi {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
             /* 移动端搜索头部和导入图标 */
             .search-header {
                 padding: 12px 12px 8px 12px;
@@ -2972,47 +2962,28 @@
         }
 
         /* ==================== Liquid Glass ==================== */
+        /* 液态玻璃效果：透过弹窗能隐约看到底下内容
+           关键：不设置 border-radius（保留面板原始圆角），不覆盖 overflow */
         .lg-container {
-            isolation: isolate;
-            overflow: hidden;
-        }
-        .lg-backdrop {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            will-change: backdrop-filter;
-            backdrop-filter: blur(60px) saturate(180%) brightness(1.05);
-            -webkit-backdrop-filter: blur(60px) saturate(180%) brightness(1.05);
-            pointer-events: none;
-            border-radius: inherit;
-        }
-        .lg-backdrop::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            background: linear-gradient(
-                180deg,
-                rgba(255, 255, 255, 0.12) 0%,
-                transparent 50%,
-                rgba(255, 255, 255, 0.03) 100%
-            );
-            pointer-events: none;
-        }
-        .lg-specular {
-            position: absolute;
-            inset: 0;
-            z-index: 2;
-            pointer-events: none;
-            border-radius: inherit;
+            /* 多层背景：高光渐变 + 半透明底色，让背景隐约可见 */
+            background:
+                linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 40%, rgba(255, 255, 255, 0.05) 100%),
+                rgba(255, 255, 255, 0.06);
+            /* 兜底：不支持backdrop-filter时的半透明深色背景 */
+            -webkit-backdrop-filter: blur(20px) saturate(160%) brightness(1.02);
+            backdrop-filter: blur(20px) saturate(160%) brightness(1.02);
             box-shadow:
-                inset 0 1.5px 0 rgba(255, 255, 255, 0.45),
-                inset 0 -1px 0 rgba(255, 255, 255, 0.08),
-                0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+                inset 0 1px 0 rgba(255, 255, 255, 0.25),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+                0 0 0 0.5px rgba(255, 255, 255, 0.08);
         }
-        .lg-container > :not(.lg-backdrop):not(.lg-specular) {
-            position: relative;
-            z-index: 3;
+        /* 支持backdrop-filter时使用更通透的背景 */
+        @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+            .lg-container {
+                background:
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, transparent 40%, rgba(255, 255, 255, 0.04) 100%),
+                    rgba(255, 255, 255, 0.04);
+            }
         }
     </style>
     <link rel="icon"
@@ -3140,6 +3111,20 @@
                             </div>
                             <div class="settings-item-text">悬浮窗歌词</div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- 检查更新 -->
+                <div class="settings-section-title">关于</div>
+                <div class="settings-group">
+                    <div class="settings-item" id="checkUpdateItem">
+                        <div class="settings-item-left">
+                            <div class="settings-item-icon">
+                                <i class="fa-solid fa-circle-up"></i>
+                            </div>
+                            <div class="settings-item-text">检查更新</div>
+                        </div>
+                        <div class="settings-item-value" id="checkUpdateVersion">未知</div>
                     </div>
                 </div>
             </div>
@@ -3302,25 +3287,21 @@
         <div class="mobile-overlay" id="searchOverlay"></div>
         <div class="mobile-overlay" id="settingsOverlay"></div>
 
-        <!-- 定时关闭弹窗 -->
+        <!-- 定时关闭弹窗（统一面板风格） -->
         <div class="ding-shi-tan-chuang" id="dingShiTanChuang">
-            <div class="ding-shi-tan-chuang-nei-rong">
-                <div class="ding-shi-biao-ti" id="dingShiBiaoTi">定时关闭</div>
-                <div class="ding-shi-fen-ge-xian"></div>
-                <div class="ding-shi-lie-biao" id="dingShiLieBiao">
-                    <div class="ding-shi-lie-biao-xiang" data-minutes="15">
-                        <div class="ding-shi-lie-biao-xiang-wen-zi">15分钟</div>
-                    </div>
-                    <div class="ding-shi-lie-biao-xiang" data-minutes="30">
-                        <div class="ding-shi-lie-biao-xiang-wen-zi">30分钟</div>
-                    </div>
-                    <div class="ding-shi-lie-biao-xiang" data-minutes="45">
-                        <div class="ding-shi-lie-biao-xiang-wen-zi">45分钟</div>
-                    </div>
-                    <div class="ding-shi-lie-biao-xiang" data-minutes="60">
-                        <div class="ding-shi-lie-biao-xiang-wen-zi">1小时</div>
-                    </div>
-                </div>
+            <div class="settings-header">
+                <div class="settings-title" id="dingShiBiaoTi">定时关闭</div>
+            </div>
+            <div class="settings-divider"></div>
+            <div class="settings-content">
+                <div class="settings-section-title">选择时长</div>
+                <ul class="ding-shi-lie-biao" id="dingShiLieBiao">
+                    <li class="ding-shi-lie-biao-xiang" data-minutes="15">15分钟</li>
+                    <li class="ding-shi-lie-biao-xiang" data-minutes="30">30分钟</li>
+                    <li class="ding-shi-lie-biao-xiang" data-minutes="45">45分钟</li>
+                    <li class="ding-shi-lie-biao-xiang" data-minutes="60">1小时</li>
+                </ul>
+                <div class="settings-divider"></div>
                 <div class="ding-shi-zi-ding-yi">
                     <label>自定义时长</label>
                     <input type="number" id="dingShiZiDingYi" min="1" max="240" placeholder="分钟">
@@ -3333,13 +3314,16 @@
                     </div>
                     <div class="kai-guan" id="dingShiBoWanKaiGuan"></div>
                 </div>
-                <div class="ding-shi-fen-ge-xian"></div>
+                <div class="settings-divider"></div>
                 <div class="ding-shi-cao-zuo" id="dingShiCaoZuo">
                     <button class="ding-shi-cao-zuo-an-niu ding-shi-qu-xiao" id="dingShiQuXiao">取消</button>
                     <button class="ding-shi-cao-zuo-an-niu ding-shi-que-ding" id="dingShiQueDing">确定</button>
                 </div>
             </div>
         </div>
+
+        <!-- 定时关闭遮罩 -->
+        <div class="mobile-overlay" id="dingShiOverlay"></div>
 
         <div class="info-panel">
             <div class="sync-indicator" id="syncIndicator"></div>
@@ -3867,9 +3851,22 @@
             return true;
         }
 
+        // API是否已配置（纯Web环境未经原生注入 initApiServers 时为false）
+        function apiShiFouKeYong() {
+            const api = API_SERVERS[currentApiIndex] || API_SERVERS[0];
+            return !!(api && api.url);
+        }
+
         // 获取当前API URL（根据API模式传递不同参数）
         function getApiUrl(songId, level, songName = '') {
             const api = API_SERVERS[currentApiIndex] || API_SERVERS[0];
+
+            // 纯 Web 环境（浏览器直接打开）未经原生注入配置时 API_SERVERS 为空，
+            // 此时返回 null 让调用方走空值保护，避免 api.mode 抛 TypeError 中断列表加载
+            if (!api || !api.url) {
+                console.warn('[API] API服务未配置（仅App内可用），无法生成URL');
+                return null;
+            }
 
             let url = '';
 
@@ -4155,9 +4152,20 @@
 
         
 
+        // Base64 解码工具：API 兜底地址不明文存放于静态资源中，运行时组装，
+        // 避免 APK 打包后可被直接 strings 出完整明文地址
+        function jieMiBase64(encoded) {
+            try {
+                return atob(encoded);
+            } catch (e) {
+                console.warn('Base64解码失败:', e);
+                return '';
+            }
+        }
+
         // QQ音乐API地址 - 运行时由 Native 注入 window.__QQMUSIC_API_URL__ / __QQMUSIC_API_TOKEN__
-        // 兜底：使用搜索API的URL和Token（同一服务端），并标记为占位符避免泄露
-        window.__QQMUSIC_API_URL__ = window.__QQMUSIC_API_URL__ || "https://apicx.asia/api/qqmusic";
+        // 兜底：使用搜索API的URL和Token（同一服务端）；URL 兜底值经 Base64 混淆，运行时解码
+        window.__QQMUSIC_API_URL__ = window.__QQMUSIC_API_URL__ || jieMiBase64('aHR0cHM6Ly9hcGljeC5hc2lhL2FwaS9xcW11c2lj');
         window.__QQMUSIC_API_TOKEN__ = window.__QQMUSIC_API_TOKEN__ || window.__SEARCH_API_TOKEN__ || "";
 
         // 歌词API地址 - 由 Native 启动期注入到 window.__LYRIC_API_URL__ / __LYRIC_API_TOKEN__
@@ -4188,6 +4196,8 @@
                         const testJson = AndroidBridge.loadPlaylist();
                         if (testJson) {
                             console.log('Android Bridge 数据已就绪');
+                            // 早期同步悬浮窗歌词状态，确保 shouldLoadLyrics() 返回正确值
+                            if (typeof tongBuXuanFuGeCiZaoQi === 'function') tongBuXuanFuGeCiZaoQi();
                             break;
                         }
                     } catch (e) {
@@ -4218,7 +4228,7 @@
                             try {
                                 var npath = AndroidBridge.huoQuHuanCunLuJing(String(sid));
                                 if (npath && npath.length > 0) hasNativeCache = true;
-                            } catch(e) {}
+                            } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
                         }
                         if (typeof getSongCacheFromStorage === 'function') {
                             var cdata = getSongCacheFromStorage(sid);
@@ -4813,7 +4823,7 @@
                     currentProgress = clampedTimeMs;
                     updateProgress();
                     forceSyncMediaSession();
-                    if (lyricsEnabled) updateLyricsDisplay();
+                    if (shouldLoadLyrics()) updateLyricsDisplay();
                     setTimeout(() => syncIndicator.classList.remove('syncing'), 300);
                 });
 
@@ -4903,7 +4913,7 @@
 
             // 通知全局异常处理模块播放器恢复成功
             if (typeof AndroidBridge !== 'undefined' && AndroidBridge.tongZhiBoFangQiHuiFuChengGong) {
-                try { AndroidBridge.tongZhiBoFangQiHuiFuChengGong(); } catch(e) {}
+                try { AndroidBridge.tongZhiBoFangQiHuiFuChengGong(); } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
             }
 
             if (loadingTimeoutId) {
@@ -4985,7 +4995,7 @@
 
                 updateProgress();
 
-                if (lyricsEnabled) {
+                if (shouldLoadLyrics()) {
                     updateLyricsDisplay();
                 }
             }
@@ -5052,6 +5062,7 @@
                     console.log('[原生切歌] 后台，保存快照，加载歌词: ' + info.name);
                     if (shouldLoadLyrics() && typeof loadLyrics === 'function') {
                         lyricRetryCount = 0;
+                        lyricTriedWebApi = false;
                         loadLyrics(info.id);
                     }
                     return;
@@ -5238,6 +5249,7 @@
 
                 if (shouldLoadLyrics() && typeof loadLyrics === 'function') {
                     lyricRetryCount = 0;
+                    lyricTriedWebApi = false;
                     loadLyrics(info.id);
                 }
 
@@ -5276,7 +5288,7 @@
                     if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.nativeIsPlaying === 'function') {
                         try {
                             actualPlaying = AndroidBridge.nativeIsPlaying();
-                        } catch(e) {}
+                        } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
                     }
                     isPlaying = actualPlaying;
                     console.log('[原生切歌] 恢复同步模式，播放状态:', isPlaying);
@@ -5294,7 +5306,7 @@
                     try {
                         var idxForSync = (typeof playMode !== 'undefined' && playMode === PlayMode.RANDOM) ? currentIndex : (typeof info.index !== 'undefined' ? info.index : currentIndex);
                         AndroidBridge.gengXinBoFangSuoYin(idxForSync, typeof playMode !== 'undefined' ? playMode : 0);
-                    } catch(e) {}
+                    } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
                 }
             } catch (e) {
                 console.error('[原生切歌] 处理失败:', e);
@@ -5358,7 +5370,7 @@
                                 if (typeof AndroidBridge.xiaZaiYinPinHuanCun === 'function') {
                                     try {
                                         AndroidBridge.xiaZaiYinPinHuanCun(String(songId), geQuXinXi.name || '');
-                                    } catch(e) {}
+                                    } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
                                 }
                             } else {
                                 console.warn('[原生请求URL] nativeSetSongUrl 不可用!');
@@ -5386,11 +5398,15 @@
         let lastNativeStateChangeTime = 0;
         const MIN_STATE_CHANGE_INTERVAL_MS = 50; // 50ms防抖，足够防止CPU突发回调，又不会丢失用户操作
 
-        function onNativePlayStateChanged(playing) {
+        // 当前状态变化原因（"paused"=主动暂停, ""=未知/自然停止）。用于切歌兜底判断。
+        var _zhuangTaiYuanYin = "";
+
+        function onNativePlayStateChanged(playing, reason) {
+            if (reason === undefined) reason = "";
             const now = Date.now();
             const timeSinceLastChange = lastNativeStateChangeTime > 0 ? now - lastNativeStateChangeTime : 0;
 
-            console.log('[ShiYinSync] [播放状态] Native→H5: ' + (playing ? "播放中" : "已暂停") + ', 距上次变化: ' + timeSinceLastChange + 'ms');
+            console.log('[ShiYinSync] [播放状态] Native→H5: ' + (playing ? "播放中" : "已暂停") + ', 原因=' + (reason || '未知') + ', 距上次变化: ' + timeSinceLastChange + 'ms');
 
             lastNativeStateChangeTime = now;
 
@@ -5399,18 +5415,31 @@
                 playStateDebounceTimer = null;
             }
 
+            // 保留暂停原因：MediaSession/音频焦点暂停会双重通知(pause回调+同步通知)，
+            // 第二次通知(reason="")在100ms内到达会被防抖，此时需保留第一次的"paused"原因，防止兜底误触发
+            if (!playing && reason === "" && _zhuangTaiYuanYin === "paused") {
+                reason = "paused";
+            }
+            _zhuangTaiYuanYin = reason;
+
             if (!playing && timeSinceLastChange < 100) {
                 playStateDebounceTimer = setTimeout(function() {
                     playStateDebounceTimer = null;
-                    applyPlayState(false);
+                    applyPlayState(false, _zhuangTaiYuanYin);
                 }, 100);
                 return;
             }
 
-            applyPlayState(playing);
+            applyPlayState(playing, reason);
         }
 
-        function applyPlayState(playing) {
+        // 切歌兜底防重复标记（全拼音：qie_ge_tuo_di_chu_fa）
+        var _qieGeTuoDiChuFa = false;
+        // 用户主动暂停标记（handlePlayPause同步设置，早于原生异步回调，作为reason的补充防线）
+        var _userPaused = false;
+
+        function applyPlayState(playing, reason) {
+            if (reason === undefined) reason = "";
             const zhuangTaiBianHua = isPlaying !== playing;
             if (zhuangTaiBianHua) {
                 isPlaying = playing;
@@ -5422,6 +5451,7 @@
                 clearInterval(progressUpdateInterval);
                 progressUpdateInterval = setInterval(updateProgress, 250);
                 syncIndicator.className = "sync-indicator";
+                _qieGeTuoDiChuFa = false; // 恢复播放时重置兜底标记
             } else {
                 stopSyncInterval();
                 clearInterval(progressUpdateInterval);
@@ -5432,6 +5462,20 @@
 
                 forceSyncMediaSession();
                 syncIndicator.className = "sync-indicator paused";
+
+                // 切歌兜底：播放停止且接近结尾时，onCompletion可能未触发（如缓存文件不完整），手动触发切歌
+                // 条件：已初始化、未重复触发、非主动暂停(reason!=="paused"且!_userPaused)、总时长>0、进度 > 80%总时长
+                // reason机制覆盖所有暂停路径(用户按钮/蓝牙/锁屏/MediaSession/音频焦点丢失)，_userPaused作为同步补充防线
+                if (isInitialized && !_qieGeTuoDiChuFa && reason !== "paused" && !_userPaused && totalDuration > 0 && currentProgress / totalDuration > 0.8) {
+                    _qieGeTuoDiChuFa = true;
+                    console.log('[播放流程] 切歌兜底: 播放停止时进度=' + (currentProgress / 1000).toFixed(1) + 's/' + (totalDuration / 1000).toFixed(1) + 's(' + (currentProgress / totalDuration * 100).toFixed(1) + '%), 原因=' + (reason || '未知') + ', 触发下一首');
+                    setTimeout(function() {
+                        if (typeof playNextSong === 'function' && !isPlaying) {
+                            playNextSong();
+                        }
+                        _qieGeTuoDiChuFa = false;
+                    }, 800);
+                }
             }
         }
 
@@ -5664,9 +5708,10 @@
                         totalDuration || 0,
                         isPlaying || false
                     );
-                    if (typeof AndroidBridge.gengXinBoFangSuoYin === 'function') {
-                        AndroidBridge.gengXinBoFangSuoYin(currentIndex, playMode);
-                    }
+                    // 注意：不在此处调用 gengXinBoFangSuoYin
+                    // 修复：10秒定时器保存的 H5 currentIndex 可能在后台播放时已过期，
+                    // 会覆盖原生 GeQuQieHuanManager 正确的 dangQianSuoYin，
+                    // 导致 onCompletion 时用错索引计算下一首 → 同一首歌循环播放
                     if (typeof AndroidBridge.gengXinBoFangLieBiao === 'function' && songIds.length > 0) {
                         AndroidBridge.gengXinBoFangLieBiao(songIds.join(','));
                     }
@@ -5778,6 +5823,9 @@
                     break;
                 case 'pause':
                     if (isPlaying) {
+                        // 标记用户/系统主动暂停，阻止 applyPlayState 切歌兜底误触发（reason机制的同步补充防线）
+                        _userPaused = true;
+                        setTimeout(function() { _userPaused = false; }, 2000);
                         nativePause();
                         isPlaying = false;
                         updatePlayButtonUI();
@@ -5800,6 +5848,8 @@
                     break;
                 case 'stop':
                     // 停止播放
+                    _userPaused = true;
+                    setTimeout(function() { _userPaused = false; }, 2000);
                     nativePause();
                     isPlaying = false;
                     updatePlayButtonUI();
@@ -5827,7 +5877,7 @@
             currentProgress = clampedPosition;
             updateProgress();
             forceSyncMediaSession(clampedPosition / 1000);
-            if (lyricsEnabled) updateLyricsDisplay();
+            if (shouldLoadLyrics()) updateLyricsDisplay();
         }
 
         /**
@@ -5842,7 +5892,6 @@
                 img2.style.animationPlayState = "running";
                 if (dynamicBgLayer) dynamicBgLayer.style.opacity = '1';
                 infoPanel.style.opacity = 1;
-                infoPanel.style.transform = 'translateY(0px)';
                 infoPanel.style.pointerEvents = 'auto';
             } else {
                 icons.classList.remove('fa-pause');
@@ -5851,7 +5900,6 @@
                 img2.style.animationPlayState = 'paused';
                 if (dynamicBgLayer) dynamicBgLayer.style.opacity = '0';
                 infoPanel.style.opacity = 0;
-                infoPanel.style.transform = 'translateY(50px)';
                 infoPanel.style.pointerEvents = 'none';
             }
         }
@@ -5860,7 +5908,11 @@
          * 加载歌词
          */
         function loadLyrics(songId) {
-            showLyricLoading();
+            console.log('[loadLyrics] 开始加载歌词, songId=' + songId + ', lyricsEnabled=' + (typeof lyricsEnabled !== 'undefined' ? lyricsEnabled : 'undefined') + ', xuanFuGeCiYiKaiQi=' + (typeof xuanFuGeCiYiKaiQi !== 'undefined' ? xuanFuGeCiYiKaiQi : 'undefined'));
+            // 只在主歌词展开时才显示加载提示，悬浮窗专用加载不显示（避免闪一下"加载歌词中..."）
+            if (lyricsEnabled) {
+                showLyricLoading();
+            }
             cancelLyricRequest();
             // 注意：不在此处重置 lyricRetryCount，由调用方负责
             // 防止 retryLoadLyrics → loadLyrics → 重置为0 → 无限循环
@@ -5919,7 +5971,7 @@
                     loadedLyricSongId = songId;
                     updateLyricsDisplay(true);
                     if (!fromNative && typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.nativeSaveLyric === 'function') {
-                        try { AndroidBridge.nativeSaveLyric(String(songId), JSON.stringify(result)); } catch(e) {}
+                        try { AndroidBridge.nativeSaveLyric(String(songId), JSON.stringify(result)); } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
                     }
                 } else {
                     lyrics = [{ time: 0, text: "暂无歌词", trans: "" }];
@@ -5928,8 +5980,24 @@
                     if (typeof sendLyricData === 'function') sendLyricData(lyrics);
                 }
             } else {
-                if (lyricRetryCount < 3) {
+                // Bug 8修复：原生API失败时尝试JS侧API作为兜底
+                if (lyricRetryCount < 2) {
                     retryLoadLyrics(songId);
+                } else if (!lyricTriedWebApi) {
+                    // 原生重试用尽，尝试JS侧API
+                    lyricTriedWebApi = true;
+                    lyricRetryCount = 0;
+                    console.log('[歌词] 原生API失败，尝试JS侧API兜底');
+                    if (typeof fetchLyricsFromAPI === 'function') {
+                        fetchLyricsFromAPI(songId);
+                    } else {
+                        lyrics = [{ time: 0, text: "暂无歌词", trans: "" }];
+                        updateLyricsDisplay(true);
+                        loadedLyricSongId = songId;
+                        showLyricError("无法获取歌词");
+                        setTimeout(hideLyricLoading, 2000);
+                        if (typeof sendLyricData === 'function') sendLyricData(lyrics);
+                    }
                 } else {
                     lyrics = [{ time: 0, text: "暂无歌词", trans: "" }];
                     updateLyricsDisplay(true);
@@ -6074,7 +6142,7 @@
             _lyricLoadSessionId++;
             // 清理待处理的原生回调
             if (_pendingLyricCallbackName) {
-                try { delete window[_pendingLyricCallbackName]; } catch(e) {}
+                try { delete window[_pendingLyricCallbackName]; } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
                 _pendingLyricCallbackName = null;
             }
             if (lyricCancelTokenSource) {
@@ -6128,10 +6196,8 @@
             // 按时间排序
             lyrics.sort((a, b) => a.time - b.time);
 
-            // 如果启用了歌词，更新显示
-            if (lyricsEnabled) {
-                updateLyricsDisplay(true);
-            }
+            // 更新歌词显示（updateLyricsDisplay 内部已判断 shouldLoadLyrics）
+            updateLyricsDisplay(true);
 
             // 同步歌词数据到原生，供后台悬浮窗独立刷新
             if (typeof sendLyricData === 'function') {
@@ -6658,9 +6724,6 @@
                 // 通知原生端歌曲信息变化
                 notifyNativeSongInfo();
 
-                // 更新通知栏状态为播放中
-                updateNotificationStatus("playing", res.data.data.name, res.data.data.artist);
-
                 // 立即设置初始位置为0，确保系统进度条正确重置
                 if (supportsMediaSessionPositionState) {
                     navigator.mediaSession.setPositionState({
@@ -6684,14 +6747,14 @@
                     enableButtons();
                     hideLoading提示();
                     isInitialized = true;
-                    if (shouldLoadLyrics()) { lyricRetryCount = 0; loadLyrics(songId); }
+                    if (shouldLoadLyrics()) { lyricRetryCount = 0; lyricTriedWebApi = false; loadLyrics(songId); }
                     updatePlaylistCurrentInfo();
 
                     // 触发Native音频缓存下载（异步，不影响当前播放）
                     if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.xiaZaiYinPinHuanCun === 'function') {
                         try {
                             AndroidBridge.xiaZaiYinPinHuanCun(String(songId), res.data.data.name || '');
-                        } catch(e) {}
+                        } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
                     }
                 }
 
@@ -7173,7 +7236,7 @@
                 nativeSeekTo(newPositionMs);
                 updateProgress();
                 forceSyncMediaSession(newPositionMs / 1000);
-                if (lyricsEnabled) updateLyricsDisplay();
+                if (shouldLoadLyrics()) updateLyricsDisplay();
                 else lastKnownTime = currentProgress;
                 progressUpdateInterval = setInterval(updateProgress, 250);
             }
@@ -7221,7 +7284,9 @@
                 return;
             }
 
-            console.log('[播放流程] handlePlayPause: isPlaying=' + isPlaying);
+            var mainBefore = (typeof lyricsEnabled !== 'undefined') ? lyricsEnabled : 'undefined';
+            var xuanFuBefore = (typeof xuanFuGeCiYiKaiQi !== 'undefined') ? xuanFuGeCiYiKaiQi : 'undefined';
+            console.log('[播放流程] handlePlayPause: isPlaying=' + isPlaying + ', lyricsEnabled=' + mainBefore + ', xuanFuGeCiYiKaiQi=' + xuanFuBefore);
             try {
                 if (!isPlaying) {
                     // 播放 - 调用原生
@@ -7232,41 +7297,41 @@
                         lyricsEnabled = true;
                         lyricsContainer.classList.add('show');
                         lyricsCollapsedByPause = false;
+                        console.log('[播放流程] 恢复暂停前状态: lyricsEnabled=true (由暂停折叠恢复)');
                     }
                 } else {
                     // 暂停 - 调用原生
+                    // 标记用户主动暂停，阻止 applyPlayState 中的切歌兜底误触发（reason机制的同步补充防线）
+                    _userPaused = true;
+                    setTimeout(function() { _userPaused = false; }, 2000);
                     if (typeof nativePause === 'function') nativePause();
 
                     if (lyricsEnabled) {
                         lyricsEnabled = false;
                         lyricsContainer.classList.remove('show');
                         lyricsCollapsedByPause = true;
+                        console.log('[播放流程] 暂停折叠歌词: lyricsEnabled=false (仅折叠UI, 不影响悬浮窗)');
                     }
                 }
             } catch (error) {
                 console.error("播放控制出错:", error);
                 showToast('操作失败，请重试', 'error', 2000);
             }
+            var mainAfter = (typeof lyricsEnabled !== 'undefined') ? lyricsEnabled : 'undefined';
+            var xuanFuAfter = (typeof xuanFuGeCiYiKaiQi !== 'undefined') ? xuanFuGeCiYiKaiQi : 'undefined';
+            console.log('[播放流程] handlePlayPause 结束: lyricsEnabled=' + mainAfter + ', xuanFuGeCiYiKaiQi=' + xuanFuAfter);
         }
 
         /**
          * 播放上一首歌曲 - H5端直接计算索引并调用loadAndPlaySong
          */
         function playPreviousSong() {
-            // 单曲循环 + 搜索歌曲：重播搜索歌曲
-            if (playMode === PlayMode.SINGLE_LOOP && currentSearchSong) {
-                console.log('[切歌] 上一首-单曲循环搜索歌曲: ' + currentSearchSong.name);
-                if (typeof playSearchResult === 'function') {
-                    var idx = typeof searchResults !== 'undefined' ? searchResults.findIndex(function(s) { return s.id === currentSearchSong.id; }) : -1;
-                    if (idx >= 0) { playSearchResult(idx); return; }
-                }
-            }
             if (songIds.length === 0) return;
+            // 防重入：加载中时忽略
+            if (isLoading) { console.log('[切歌] 上一首: 忽略，正在加载中'); return; }
             console.log('[切歌] 上一首, 当前索引=' + currentIndex + ', 模式=' + playMode);
             var targetIndex;
-            if (playMode === PlayMode.SINGLE_LOOP) {
-                targetIndex = currentIndex;
-            } else if (playMode === PlayMode.RANDOM) {
+            if (playMode === PlayMode.RANDOM) {
                 if (randomQueue.length === 0) initRandomQueue();
                 randomIndex = (randomIndex - 1 + randomQueue.length) % randomQueue.length;
                 targetIndex = randomIndex;
@@ -7277,20 +7342,14 @@
         }
 
         function playNextSong() {
-            // 单曲循环 + 搜索歌曲：重播搜索歌曲
-            if (playMode === PlayMode.SINGLE_LOOP && currentSearchSong) {
-                console.log('[切歌] 下一首-单曲循环搜索歌曲: ' + currentSearchSong.name);
-                if (typeof playSearchResult === 'function') {
-                    var idx = typeof searchResults !== 'undefined' ? searchResults.findIndex(function(s) { return s.id === currentSearchSong.id; }) : -1;
-                    if (idx >= 0) { playSearchResult(idx); return; }
-                }
-            }
+            // 手动点击下一首时忽略单曲循环模式，始终切到下一首
+            // 单曲循环只在歌曲自动播放完成时生效
             if (songIds.length === 0) return;
+            // 防重入：加载中时忽略
+            if (isLoading) { console.log('[切歌] 下一首: 忽略，正在加载中'); return; }
             console.log('[切歌] 下一首, 当前索引=' + currentIndex + ', 模式=' + playMode);
             var targetIndex;
-            if (playMode === PlayMode.SINGLE_LOOP) {
-                targetIndex = currentIndex;
-            } else if (playMode === PlayMode.RANDOM) {
+            if (playMode === PlayMode.RANDOM) {
                 if (randomQueue.length === 0) initRandomQueue();
                 randomIndex = (randomIndex + 1) % randomQueue.length;
                 targetIndex = randomIndex;
@@ -7404,7 +7463,7 @@
             if (!cachedData.url || cachedData.url.includes('file:///android_asset')) {
                 console.warn('[播放流程] 缓存URL无效，删除缓存并重新请求API');
                 if (typeof saveSongCacheToStorage === 'function' || typeof getSongCacheFromStorage === 'function') {
-                    try { localStorage.removeItem(CACHE_CONFIG.SONG_CACHE_PREFIX + songId); } catch(e) {}
+                    try { localStorage.removeItem(CACHE_CONFIG.SONG_CACHE_PREFIX + songId); } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
                 }
                 // 重新走API请求
                 isLoading = false;
@@ -7531,7 +7590,7 @@
                 hideLoading提示();
             }
 
-            if (shouldLoadLyrics()) { lyricRetryCount = 0; loadLyrics(songId); }
+            if (shouldLoadLyrics()) { lyricRetryCount = 0; lyricTriedWebApi = false; loadLyrics(songId); }
             updatePlaylistCurrentInfo();
             renderPlaylist();
         }
@@ -7631,6 +7690,14 @@
          */
         function loadAndPlaySong(targetIndex, retryCount, seekTime = 0) {
             var loadId = ++_activeLoadId;  // 防冲突：每次调用递增，用于过滤过期回调
+            // 诊断日志：仅当切到不同索引时记录调用栈，定位Bug A(意外切回初始歌曲)的触发器
+            // 过滤同索引重载(重试/跳转/重播)，减少噪声；Bug A确认修复后应移除此诊断
+            if (isInitialized && retryCount === 0 && targetIndex !== currentIndex) {
+                try { throw new Error(); } catch (e) {
+                    var stackLines = e.stack ? e.stack.split('\n').slice(2, 6).join(' <- ') : 'unknown';
+                    console.log('[播放流程] loadAndPlaySong 诊断: loadId=' + loadId + ', targetIndex=' + targetIndex + ', currentIndex=' + (typeof currentIndex !== 'undefined' ? currentIndex : '?') + ', 调用栈片段: ' + stackLines);
+                }
+            }
             console.log('[播放流程] loadAndPlaySong 开始: loadId=' + loadId + ', targetIndex=' + targetIndex + ', retryCount=' + retryCount + ', seekTime=' + seekTime + ', playMode=' + playMode + ', songIds.length=' + songIds.length);
             // 用户主动切歌(播放列表点击等)清除前台恢复封面保护锁，使新封面立刻生效
             if (typeof switchAlbumImage === 'function' && typeof switchAlbumImage.clearResumeLock === 'function') {
@@ -7679,7 +7746,6 @@
             clearLyricLines();
             hideLyricLoading();
             showLoading提示("切歌中...", 1);
-            updateNotificationStatus("loading", "歌曲正在加载", "");
 
             // 获取目标歌曲ID
             const targetSongId = playMode === PlayMode.RANDOM ? randomQueue[targetIndex] : songIds[targetIndex];
@@ -7763,7 +7829,7 @@
                                     if (loadingTimeoutId) { clearTimeout(loadingTimeoutId); loadingTimeoutId = null; }
                                     enableButtons();
                                     hideLoading提示();
-                                    if (shouldLoadLyrics()) { lyricRetryCount = 0; loadLyrics(targetSongId); }
+                                    if (shouldLoadLyrics()) { lyricRetryCount = 0; lyricTriedWebApi = false; loadLyrics(targetSongId); }
                                     updateIndexAfterLoad(targetIndex, targetSongId, loadId);
                                     return;
                                 }
@@ -7902,7 +7968,7 @@
                             if (loadingTimeoutId) { clearTimeout(loadingTimeoutId); loadingTimeoutId = null; }
                             enableButtons();
                             hideLoading提示();
-                            if (shouldLoadLyrics()) { lyricRetryCount = 0; loadLyrics(targetSongId); }
+                            if (shouldLoadLyrics()) { lyricRetryCount = 0; lyricTriedWebApi = false; loadLyrics(targetSongId); }
 
                             // 触发Native音频缓存下载（异步，不影响当前播放）
                             if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.xiaZaiYinPinHuanCun === 'function') {
@@ -7967,7 +8033,7 @@
                 currentIndex = targetIndex;
             }
             if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.gengXinBoFangSuoYin === 'function') {
-                try { AndroidBridge.gengXinBoFangSuoYin(currentIndex, typeof playMode !== 'undefined' ? playMode : 0); } catch(e) {}
+                try { AndroidBridge.gengXinBoFangSuoYin(currentIndex, typeof playMode !== 'undefined' ? playMode : 0); } catch(e) { console.warn('[ShiYin] 操作失败:', e); }
             }
             // 更新歌曲名/歌手/封面显示
             // 关键修复：使用 String() 确保类型匹配（songIds可能是number，playlistData.id也可能是number）
@@ -8007,6 +8073,11 @@
          * 初始播放函数
          */
         function playMusic() {
+            // 防御：已初始化后禁止再次调用playMusic（防止后台回调倒回初始歌曲）
+            if (isInitialized) {
+                console.warn('[播放流程] playMusic: 已初始化，禁止再次调用! currentIndex=' + (typeof currentIndex !== 'undefined' ? currentIndex : '?'));
+                return;
+            }
             // 查找sui在songIds数组中的索引
             const initialIndex = songIds.indexOf(sui);
             console.log('[播放流程] playMusic: sui=' + sui + ', initialIndex=' + initialIndex + ', songIds.length=' + songIds.length);
@@ -8085,7 +8156,7 @@
                 nativeSeekTo(newPositionMs);
                 updateProgress();
                 forceSyncMediaSession(newPositionMs / 1000);
-                if (lyricsEnabled) updateLyricsDisplay();
+                if (shouldLoadLyrics()) updateLyricsDisplay();
                 else lastKnownTime = currentProgress;
                 setTimeout(() => syncIndicator.classList.remove('syncing'), 300);
             }
@@ -8119,6 +8190,10 @@
         };
 
         function daKaiDingShiTanChuang() {
+            // 显示遮罩
+            if (typeof dingShiOverlay !== 'undefined' && dingShiOverlay) {
+                dingShiOverlay.classList.add('show');
+            }
             if (dingShiZhuangTai.qiYong) {
                 dingShiBiaoTi.textContent = '定时关闭（进行中）';
                 dingShiCaoZuo.innerHTML = '<button class="ding-shi-cao-zuo-an-niu ding-shi-qu-xiao" id="dingShiQuXiao2">关闭定时</button>';
@@ -8138,6 +8213,10 @@
 
         function guanBiDingShiTanChuang() {
             dingShiTanChuang.classList.remove('xian-shi');
+            // 隐藏遮罩（移动端）
+            if (typeof dingShiOverlay !== 'undefined' && dingShiOverlay) {
+                dingShiOverlay.classList.remove('show');
+            }
         }
 
         function gengXinXuanXiangZhuangTai() {
@@ -8261,12 +8340,28 @@
             }
         }
 
+        const dingShiOverlay = document.getElementById('dingShiOverlay');
+
         addTouchFeedback(dingShiAnNiu, () => {
             daKaiDingShiTanChuang();
         });
 
-        dingShiTanChuang.addEventListener('click', (e) => {
-            if (e.target === dingShiTanChuang) {
+        dingShiOverlay.addEventListener('click', () => {
+            guanBiDingShiTanChuang();
+        });
+
+        // 点击面板外部关闭（桌面端）
+        document.addEventListener('mousedown', function(e) {
+            if (dingShiTanChuang.classList.contains('xian-shi') &&
+                !dingShiTanChuang.contains(e.target) &&
+                !dingShiAnNiu.contains(e.target)) {
+                guanBiDingShiTanChuang();
+            }
+        });
+        document.addEventListener('touchstart', function(e) {
+            if (dingShiTanChuang.classList.contains('xian-shi') &&
+                !dingShiTanChuang.contains(e.target) &&
+                !dingShiAnNiu.contains(e.target)) {
                 guanBiDingShiTanChuang();
             }
         });
@@ -8293,22 +8388,17 @@
     </script>
 
     <script>
-        // 初始化液体玻璃效果
+        // 初始化液体玻璃效果（CSS伪元素实现，仅需添加lg-container类名）
         function initLiquidGlass() {
             try {
                 var panels = document.querySelectorAll(
                     '.settings-panel, .search-panel, .playlist-panel, ' +
                     '.import-panel, .cache-manager-panel, .xuanfu-settings-modal, ' +
-                    '.ding-shi-tan-chuang-nei-rong, .import-toast'
+                    '.ding-shi-tan-chuang, .import-toast'
                 );
                 panels.forEach(function(panel) {
-                    if (panel.querySelector('.lg-backdrop')) return;
+                    if (panel.classList.contains('lg-container')) return;
                     panel.classList.add('lg-container');
-                    // 在面板最前面插入底色层和高光层
-                    panel.insertAdjacentHTML('afterbegin',
-                        '<div class="lg-backdrop"></div>' +
-                        '<div class="lg-specular"></div>'
-                    );
                 });
             } catch(e) {
                 console.warn('[LiquidGlass] 初始化失败:', e);

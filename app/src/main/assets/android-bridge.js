@@ -111,11 +111,19 @@
 
     // 发送歌词数据到原生端（用于悬浮窗后台同步）
     function sendLyricData(lyricsArray) {
-        if (!isBridgeAvailable()) return;
-        if (!Array.isArray(lyricsArray)) return;
+        console.log('[sendLyricData] 发送歌词数据, 条数=' + (Array.isArray(lyricsArray) ? lyricsArray.length : '非数组') + ', lyricsEnabled=' + (typeof lyricsEnabled !== 'undefined' ? lyricsEnabled : 'undefined') + ', xuanFuGeCiYiKaiQi=' + (typeof xuanFuGeCiYiKaiQi !== 'undefined' ? xuanFuGeCiYiKaiQi : 'undefined'));
+        if (!isBridgeAvailable()) {
+            console.log('[sendLyricData] Bridge 不可用, 取消发送');
+            return;
+        }
+        if (!Array.isArray(lyricsArray)) {
+            console.log('[sendLyricData] 歌词数据不是数组, 取消发送');
+            return;
+        }
 
         try {
             AndroidBridge.sendLyricData(JSON.stringify(lyricsArray));
+            console.log('[sendLyricData] 歌词数据已发送到原生');
         } catch (e) {
             console.error('[AndroidBridge] 发送歌词数据失败:', e);
         }
@@ -129,124 +137,6 @@
             AndroidBridge.onProgressChanged(currentTime, duration);
         } catch (e) {
             console.error('[AndroidBridge] 发送进度失败:', e);
-        }
-    }
-
-    // 处理原生命令分发（通知栏/蓝牙/线控按钮命令由此进入）
-    function handleNativeCommand(command) {
-        console.log('[AndroidBridge] 收到原生命令:', command);
-        
-        switch (command) {
-            case 'play':
-                handlePlayCommand();
-                break;
-            case 'pause':
-                handlePauseCommand();
-                break;
-            case 'toggle':
-                handleToggleCommand();
-                break;
-            case 'previous':
-                handlePreviousCommand();
-                break;
-            case 'next':
-                handleNextCommand();
-                break;
-            case 'stop':
-                handleStopCommand();
-                break;
-            default:
-                if (command.startsWith('seek:')) {
-                    const position = parseInt(command.split(':')[1], 10);
-                    handleSeekCommand(position);
-                }
-                break;
-        }
-    }
-
-    // 处理播放命令：当前未播放时触发播放
-    function handlePlayCommand() {
-        console.log('[AndroidBridge] [命令] play: isPlaying=' + isPlaying);
-        if (typeof handlePlayPause === 'function') {
-            if (!isPlaying) {
-                handlePlayPause();
-            }
-        }
-    }
-
-    // 处理暂停命令：当前播放中时触发暂停
-    function handlePauseCommand() {
-        console.log('[AndroidBridge] [命令] pause: isPlaying=' + isPlaying);
-        if (typeof handlePlayPause === 'function') {
-            if (isPlaying) {
-                handlePlayPause();
-            }
-        }
-    }
-
-    // 处理切换命令：直接切换播放/暂停状态
-    function handleToggleCommand() {
-        if (typeof handlePlayPause === 'function') {
-            handlePlayPause();
-        }
-    }
-
-    // 处理上一首命令
-    function handlePreviousCommand() {
-        console.log('[AndroidBridge] [命令] previous');
-        // 关键修复：随机模式下直接走H5路径，因为H5有正确的随机队列顺序
-        // 原生GeQuQieHuanManager只有顺序列表，随机模式会选错歌
-        var currentPlayMode = (typeof playMode !== 'undefined') ? playMode : 0;
-        if (currentPlayMode !== 2 && typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.yuanShengQieGe === 'function') {
-            try {
-                AndroidBridge.yuanShengQieGe("previous");
-                console.log('[AndroidBridge] [命令] previous: 已调用原生切歌');
-                return;
-            } catch (e) {
-                console.error('[AndroidBridge] 原生切歌(上一首)失败:', e);
-            }
-        }
-        console.log('[AndroidBridge] [命令] previous: 走H5路径 (模式=' + currentPlayMode + ')');
-        if (typeof playPreviousSong === 'function') {
-            playPreviousSong();
-        }
-    }
-
-    function handleNextCommand() {
-        console.log('[AndroidBridge] [命令] next');
-        // 关键修复：随机模式下直接走H5路径
-        var currentPlayMode = (typeof playMode !== 'undefined') ? playMode : 0;
-        if (currentPlayMode !== 2 && typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.yuanShengQieGe === 'function') {
-            try {
-                AndroidBridge.yuanShengQieGe("next");
-                console.log('[AndroidBridge] [命令] next: 已调用原生切歌');
-                return;
-            } catch (e) {
-                console.error('[AndroidBridge] 原生切歌(下一首)失败:', e);
-            }
-        }
-        console.log('[AndroidBridge] [命令] next: 走H5路径 (模式=' + currentPlayMode + ')');
-        if (typeof playNextSong === 'function') {
-            playNextSong();
-        }
-    }
-
-    // 处理停止命令：当前播放中时触发暂停
-    function handleStopCommand() {
-        if (typeof handlePlayPause === 'function') {
-            if (isPlaying) {
-                handlePlayPause();
-            }
-        }
-    }
-
-    // 处理跳转命令：跳转到指定播放位置（毫秒）
-    function handleSeekCommand(position) {
-        if (typeof AndroidBridge !== 'undefined') {
-            AndroidBridge.nativeSeekTo(position);
-        }
-        if (typeof updateProgress === 'function') {
-            updateProgress();
         }
     }
 
@@ -290,57 +180,21 @@
         };
     }
 
-    const originalHandlePlayPause = typeof handlePlayPause === 'function' ? handlePlayPause : null;
-    const originalPlayPreviousSong = typeof playPreviousSong === 'function' ? playPreviousSong : null;
-    const originalPlayNextSong = typeof playNextSong === 'function' ? playNextSong : null;
-    const originalLoadSong = typeof loadSong === 'function' ? loadSong : null;
-    const originalUpdateProgress = typeof updateProgress === 'function' ? updateProgress : null;
+    // 历史遗留说明（曾有的 window.* 包装器已删除）：
+    // 本脚本在 <script src="android-bridge.js"> 处最先加载，此时拾音.html 内联脚本里的
+    // handlePlayPause/playPreviousSong/playNextSong/updateProgress 等正式函数声明尚未执行，
+    // 原代码在此捕获的 original* 全是 null，随后内联脚本的函数声明又直接覆盖 window.*，
+    // 包装器从未生效过（连带其中的节流 sendProgress 也从不执行）。
+    // 进度推送无需前端主动发起：NativeAudioPlayer 每秒回调 onProgressChanged，
+    // 原生直接更新 MediaSession/通知栏，并经 onNativeProgressChanged 回推 H5 更新 currentProgress。
+    // 原生命令分发 handleNativeCommand 由拾音.html 内联脚本定义（全局函数声明），
+    // 原生通过 window.handleNativeCommand 调用的是 HTML 版本，此处不再重复定义。
 
-    window.handlePlayPause = function() {
-        if (originalHandlePlayPause) {
-            originalHandlePlayPause();
-        }
-    };
-
-    window.playPreviousSong = function() {
-        if (originalPlayPreviousSong) {
-            originalPlayPreviousSong();
-        }
-    };
-
-    window.playNextSong = function() {
-        if (originalPlayNextSong) {
-            originalPlayNextSong();
-        }
-    };
-
-    window.updateProgress = function() {
-        if (originalUpdateProgress) {
-            originalUpdateProgress();
-        }
-        
-        const now = Date.now();
-        if (!window._lastProgressSend || now - window._lastProgressSend > 1000) {
-            window._lastProgressSend = now;
-            sendProgress(currentProgress || 0, totalDuration || 0);
-        }
-    };
-
-    if (originalLoadSong) {
-        window.loadSong = function(...args) {
-            originalLoadSong.apply(this, args);
-            
-            setTimeout(() => {
-                const info = getCurrentSongInfo();
-                sendSongInfo(info);
-            }, 1000);
-        };
-    }
-
-    window.handleNativeCommand = handleNativeCommand;
     window.AndroidBridgeReady = initBridge;
     window.syncToNative = syncToNative;
     window.sendLyricData = sendLyricData;
+    // 暴露停止函数：本模块内的10秒状态保存定时器需纳入页面卸载时的统一清理（防内存泄漏）
+    window.tingZhiZhuangTaiBaoCun = tingZhiZhuangTaiBaoCun;
     window.qingLiGeCi = function() {
         if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.qingLiGeCi === 'function') {
             try { AndroidBridge.qingLiGeCi(); } catch(e) { console.error('[AndroidBridge] 清空歌词失败:', e); }
@@ -385,7 +239,8 @@
                     var normalizedPic = typeof guiFanHuaFengMianUrl === 'function'
                         ? guiFanHuaFengMianUrl(song.pic || '')
                         : (song.pic || '').replace(/(?<!:)\/\/+/g, '/');
-                    return { id: song.id, name: song.name || '', artist: song.artist || '', pic: normalizedPic };
+                    var songSrc = song.source || 'wy';
+                    return { id: song.id, name: song.name || '', artist: song.artist || '', pic: normalizedPic, source: songSrc, qqIndex: song.qqIndex || 1 };
                 }).filter(s => s !== null)
             };
             
@@ -441,7 +296,9 @@
                 artist: song.artist,
                 pic: typeof guiFanHuaFengMianUrl === 'function'
                     ? guiFanHuaFengMianUrl(song.pic || '')
-                    : (song.pic || '')
+                    : (song.pic || ''),
+                source: song.source || 'wy',
+                qqIndex: song.qqIndex || 1
             };
             const songJson = JSON.stringify(songToSave);
             console.log('[AndroidBridge] 正在添加歌曲:', songJson);
@@ -505,19 +362,65 @@
         }
         if (typeof window.playlistData !== 'undefined') {
             var defaultCover = typeof window.defaultCover !== 'undefined' ? window.defaultCover : '';
+
+            // 构建 localSourceMap：原生推送的数据中 source 缺失时，用 localStorage 和当前内存兜底
+            // 防止 QQ 音乐标识在原生推送恢复时被默认 'wy' 覆盖
+            var localSourceMap = {};
+            try {
+                var localJson = localStorage.getItem('playlistJson');
+                if (localJson) {
+                    var localData = JSON.parse(localJson);
+                    if (localData.songs && Array.isArray(localData.songs)) {
+                        localData.songs.forEach(function(s) {
+                            if (s.source) {
+                                localSourceMap[String(s.id)] = s.source;
+                            }
+                        });
+                    }
+                }
+            } catch(e) {
+                // 本地播放列表解析失败时仅记录，source 兜底逻辑继续执行
+                console.warn('[AndroidBridge] 解析本地播放列表JSON失败:', e);
+            }
+            // 当前内存中的 playlistData 也作为兜底源
+            if (window.playlistData && Array.isArray(window.playlistData)) {
+                window.playlistData.forEach(function(s) {
+                    if (s.source) {
+                        localSourceMap[String(s.id)] = s.source;
+                    }
+                });
+            }
+
             window.playlistData = songs.map(function(song, index) {
                 // 加载时也规范化封面URL，修复可能存在的历史脏数据
                 var normalizedPic = typeof guiFanHuaFengMianUrl === 'function'
                     ? guiFanHuaFengMianUrl(song.pic || '')
                     : (song.pic || defaultCover);
+                var finalSource = song.source || localSourceMap[String(song.id)] || 'wy';
+                if (finalSource !== (song.source || 'wy')) {
+                    console.log('[AndroidBridge] source兜底修正: id=' + song.id + ', 原生=' + (song.source || '无') + ', 修正=' + finalSource);
+                }
+                // 同步持久化 source 映射表
+                if (typeof playlistSourceMap !== 'undefined') {
+                    playlistSourceMap[String(song.id)] = finalSource;
+                }
                 return {
                     id: song.id,
                     index: index,
                     name: song.name || '未知歌曲',
                     artist: song.artist || '未知歌手',
-                    pic: normalizedPic
+                    pic: normalizedPic,
+                    source: finalSource,
+                    qqIndex: song.qqIndex || 1
                 };
             });
+
+            // 打印 source 分布，便于排查
+            var sourceCount = {};
+            window.playlistData.forEach(function(s) {
+                sourceCount[s.source] = (sourceCount[s.source] || 0) + 1;
+            });
+            console.log('[AndroidBridge] source分布:', JSON.stringify(sourceCount));
         }
 
         if (typeof window.isPlaylistLoaded !== 'undefined') {
@@ -529,21 +432,10 @@
         }
     };
 
-    const originalSavePlaylistToJSON = typeof savePlaylistToJSON === 'function' ? savePlaylistToJSON : null;
-    
-    window.savePlaylistToJSON = function() {
-        if (BridgeState.isAndroid) {
-            window.savePlaylistToAndroid().then(success => {
-                if (success) {
-                    console.log('[AndroidBridge] 播放列表已保存到本地');
-                } else {
-                    console.error('[AndroidBridge] 保存播放列表失败');
-                }
-            });
-        } else if (originalSavePlaylistToJSON) {
-            originalSavePlaylistToJSON();
-        }
-    };
+    // 说明：此处原有的 window.savePlaylistToJSON 包装器已删除（与已删除的 window.* 包装器同源问题）：
+    // 本脚本最先加载时 savePlaylistToJSON 尚未定义，originalSavePlaylistToJSON 捕获为 null；
+    // 且 bofangliebiao.js 中的全局 async function savePlaylistToJSON 后加载会直接覆盖 window.*，
+    // 该包装器从未生效。现行生效版本在 bofangliebiao.js（内部已走 window.savePlaylistToAndroid）。
 
     // ==================== 全局异常处理 H5 端 ====================
 
@@ -596,58 +488,11 @@
         }
     }
 
-    // 网络断开回调（由原生端调用）
-    window.onWangLuoDuanKai = function() {
-        console.warn('[AndroidBridge] 网络已断开');
-        if (typeof showNetworkStatus === 'function') {
-            showNetworkStatus(false);
-        }
-    };
-
-    // 网络恢复回调（由原生端调用）
-    window.onWangLuoHuiFu = function() {
-        console.log('[AndroidBridge] 网络已恢复');
-        if (typeof showNetworkStatus === 'function') {
-            showNetworkStatus(true);
-        }
-        // 网络恢复后，仅在加载中（非用户主动暂停）时尝试重新加载
-        if (typeof isLoading !== 'undefined' && isLoading && typeof isPlaying !== 'undefined' && isPlaying) {
-            console.log('[AndroidBridge] 网络恢复，尝试重新加载当前歌曲');
-            if (typeof loadAndPlaySong === 'function' && typeof currentIndex !== 'undefined') {
-                loadAndPlaySong(currentIndex, 0, typeof currentProgress !== 'undefined' ? currentProgress : 0);
-            }
-        }
-    };
-
-    // 播放器无法恢复回调（由原生端调用）
-    window.onBoFangQiWuFaHuiFu = function(cuoWuXinXi) {
-        console.error('[AndroidBridge] 播放器无法恢复:', cuoWuXinXi);
-        if (typeof showToast === 'function') {
-            showToast('播放器出错，请尝试重新播放');
-        }
-    };
-
-    // 恢复播放状态回调（由原生端调用，Service被杀后恢复）
-    window.onHuiFuBoFangZhuangTai = function(zhuangTai) {
-        console.log('[AndroidBridge] 收到恢复播放状态:', JSON.stringify(zhuangTai));
-        if (!zhuangTai || !zhuangTai.geQuId) return;
-
-        if (typeof songIds !== 'undefined' && songIds && Array.isArray(songIds)) {
-            var index = songIds.indexOf(String(zhuangTai.geQuId));
-            if (index >= 0 && typeof loadAndPlaySong === 'function') {
-                console.log('[AndroidBridge] 恢复播放: 索引=' + index + ', 位置=' + zhuangTai.dangQianWeiZhi + 'ms');
-                loadAndPlaySong(index, 0, zhuangTai.dangQianWeiZhi);
-                if (isBridgeAvailable()) {
-                    try { AndroidBridge.tongZhiBoFangQiHuiFuChengGong(); } catch(e) {}
-                }
-            } else {
-                console.warn('[AndroidBridge] 恢复失败：歌曲已不在播放列表中 ' + zhuangTai.geQuId);
-                if (typeof showToast === 'function') {
-                    showToast('歌曲已从播放列表中移除', 'warning', 3000);
-                }
-            }
-        }
-    };
+    // 以下原生→H5 回调勿在此处定义：onWangLuoDuanKai / onWangLuoHuiFu /
+    // onBoFangQiWuFaHuiFu / onHuiFuBoFangZhuangTai 的生效版本在拾音.html 内联脚本中
+    // （后加载的函数声明会覆盖此处 window.* 赋值，本文件版本是死码，已删除）。
+    // 注意：网络恢复重载逻辑经评估未合并——加载中（isLoading）失败时 handleApiError
+    // 已将 isLoading 置false并走缓存/切API/提示路径，恢复时再重载会造成重复加载。
 
     // 页面加载完成后启动状态保存定时器
     window.addEventListener('load', function() {

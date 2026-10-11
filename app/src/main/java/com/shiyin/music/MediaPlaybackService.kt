@@ -6,7 +6,9 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Binder
 import android.os.Bundle
+import android.os.Process
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
@@ -156,7 +158,16 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
         clientPackageName: String,
         clientUid: Int,
         rootHints: Bundle?
-    ): BrowserRoot {
+    ): BrowserRoot? {
+        // 修复A3：MediaBrowserService 在 Manifest 中 exported=true，必须校验调用方，
+        // 仅允许本应用包名与系统调用方(uid < FIRST_APPLICATION_UID)连接，其余拒绝
+        val callingUid = Binder.getCallingUid()
+        val isSystemCaller = callingUid < Process.FIRST_APPLICATION_UID
+        val isOwnApp = clientPackageName == packageName
+        if (!isSystemCaller && !isOwnApp) {
+            android.util.Log.w("MediaPlaybackService", "拒绝非授权 MediaBrowser 连接: pkg=$clientPackageName, uid=$clientUid")
+            return null
+        }
         return BrowserRoot("__ROOT__", null)
     }
 
@@ -164,6 +175,15 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
         parentId: String,
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>
     ) {
+        // 修复A3：纵深防御，onLoadChildren 再次校验调用方（onGetRoot 已过滤，此处双保险）
+        val callingUid = Binder.getCallingUid()
+        val isSystemCaller = callingUid < Process.FIRST_APPLICATION_UID
+        val isOwnApp = callingUid == Process.myUid()
+        if (!isSystemCaller && !isOwnApp) {
+            android.util.Log.w("MediaPlaybackService", "拒绝非授权 onLoadChildren 调用: uid=$callingUid")
+            result.sendResult(null)
+            return
+        }
         result.sendResult(mutableListOf())
     }
 

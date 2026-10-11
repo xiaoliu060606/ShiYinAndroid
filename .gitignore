@@ -26,3 +26,13 @@ app/release/
 # Stray generated directories
 /assets/
 /docs/
+
+# Gradle cache
+.gradle/
+
+# Log files
+*.log
+shiyin_log_*.txt
+
+# Handover document (contains plaintext API tokens, keep local only)
+项目交接文档.md
